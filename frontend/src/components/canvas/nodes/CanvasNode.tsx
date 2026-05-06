@@ -37,7 +37,7 @@ function CanvasNodeComponent({ id, data, selected }: CanvasNodeProps) {
 
   return (
     <div
-      className={`bg-editor border border-outline box-border cursor-pointer ${selected ? 'node-card-selected' : ''}`}
+      className={`bg-white dark:bg-editor border node-card-blocknote box-border cursor-pointer ${selected ? 'node-card-selected' : ''}`}
       style={{
         width: '268px',
         height: '56px',

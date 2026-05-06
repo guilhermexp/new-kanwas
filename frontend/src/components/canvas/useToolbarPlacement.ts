@@ -369,6 +369,7 @@ export function useToolbarPlacement(canvas: CanvasItem, onSectionContentChange?:
       e.preventDefault()
       e.stopPropagation()
       spawnAt(armedTool, pos)
+      disarm()
     }
 
     window.addEventListener('mousemove', onMove)

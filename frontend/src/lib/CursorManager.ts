@@ -27,6 +27,8 @@ class CursorManager {
   private throttleMs = 50
   private hideTimeout: ReturnType<typeof setTimeout> | null = null
   private reactFlowInstance: ReactFlowInstance | null = null
+  private viewportObserver: MutationObserver | null = null
+  private currentZoom = 1
   private provider: WorkspaceSocketProviderInstance
   private readonly isPublishingSuppressed: () => boolean
   private readonly userId: string
@@ -93,8 +95,8 @@ class CursorManager {
     cursorContainer.style.cssText = `
       position: absolute;
       pointer-events: none;
-      transition: left 0.1s linear, top 0.1s linear;
       z-index: 30;
+      transform-origin: 0 0;
     `
 
     // Create cursor SVG — polygonal triangle pointer, tip at top-left
@@ -166,7 +168,7 @@ class CursorManager {
   }
 
   private updateCursorElement(user: UserIdentity, cursor: CursorPosition) {
-    if (!this.cursorsContainer || !this.container || !this.reactFlowInstance) return
+    if (!this.cursorsContainer || !this.container) return
 
     let element = this.cursorElements.get(user.id)
     if (!element) {
@@ -177,17 +179,11 @@ class CursorManager {
 
     this.syncCursorElementAppearance(element, user)
 
-    // Convert flow coordinates to screen coordinates
-    const screenPos = this.reactFlowInstance.flowToScreenPosition({
-      x: cursor.x,
-      y: cursor.y,
-    })
-    const containerRect = this.container.getBoundingClientRect()
-
-    // The overlay is positioned inside the canvas container, so convert from
-    // viewport coordinates back into local container coordinates.
-    element.style.left = `${screenPos.x - containerRect.left}px`
-    element.style.top = `${screenPos.y - containerRect.top}px`
+    // Position in canvas (flow) coordinates — the viewport transform moves them automatically.
+    // Counter-scale so the cursor stays the same visual size at any zoom level.
+    element.style.left = `${cursor.x}px`
+    element.style.top = `${cursor.y}px`
+    element.style.transform = `scale(${1 / this.currentZoom})`
 
     this.scheduleCursorExpiry(user.id)
   }
@@ -247,10 +243,6 @@ class CursorManager {
     this.reactFlowInstance = instance
   }
 
-  refresh() {
-    this.handleAwarenessUpdate()
-  }
-
   attach(container: HTMLElement, canvasId: string) {
     if (this.container === container && this.activeCanvasId === canvasId && this.cursorsContainer) {
       this.handleAwarenessUpdate()
@@ -261,18 +253,37 @@ class CursorManager {
     this.container = container
     this.activeCanvasId = canvasId
 
-    // Create cursors container
+    // Create cursors container and mount it inside .react-flow__viewport so that
+    // pan transforms are applied automatically — no JS repositioning needed on scroll.
     this.cursorsContainer = document.createElement('div')
     this.cursorsContainer.style.cssText = `
       position: absolute;
       top: 0;
       left: 0;
-      width: 100%;
-      height: 100%;
+      width: 0;
+      height: 0;
       pointer-events: none;
       z-index: 1000;
     `
-    container.appendChild(this.cursorsContainer)
+    const viewport = container.querySelector('.react-flow__viewport') as HTMLElement | null
+    const cursorParent = viewport ?? container
+    cursorParent.appendChild(this.cursorsContainer)
+
+    // Watch the viewport transform for zoom changes and apply an inverse scale
+    // to each cursor synchronously — before paint — so visual size stays constant.
+    if (viewport && this.reactFlowInstance) {
+      this.currentZoom = this.reactFlowInstance.getViewport().zoom
+      this.viewportObserver = new MutationObserver(() => {
+        const zoom = this.reactFlowInstance!.getViewport().zoom
+        if (zoom === this.currentZoom) return
+        this.currentZoom = zoom
+        const scale = 1 / zoom
+        this.cursorElements.forEach((el) => {
+          el.style.transform = `scale(${scale})`
+        })
+      })
+      this.viewportObserver.observe(viewport, { attributes: true, attributeFilter: ['style'] })
+    }
 
     // Add event listeners
     container.addEventListener('mousemove', this.handleMouseMove)
@@ -287,6 +298,10 @@ class CursorManager {
       this.container.removeEventListener('mousemove', this.handleMouseMove)
       this.container.removeEventListener('mouseleave', this.handleMouseLeave)
     }
+
+    this.viewportObserver?.disconnect()
+    this.viewportObserver = null
+    this.currentZoom = 1
 
     if (this.cursorsContainer) {
       this.cursorsContainer.remove()

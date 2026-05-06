@@ -19,7 +19,7 @@ interface UseCanvasViewportStateOptions {
   isCursorPresenceSuppressed: () => boolean
   acquireCursorPresenceSuppression: () => () => void
   screenToFlowPosition: ReactFlowInstance['screenToFlowPosition']
-  flowToScreenPosition: ReactFlowInstance['flowToScreenPosition']
+  getViewport: ReactFlowInstance['getViewport']
   setViewport: ReactFlowInstance['setViewport']
   canvasSurfaceRef: RefObject<HTMLDivElement | null>
 }
@@ -37,7 +37,7 @@ export function useCanvasViewportState({
   isCursorPresenceSuppressed,
   acquireCursorPresenceSuppression,
   screenToFlowPosition,
-  flowToScreenPosition,
+  getViewport,
   setViewport,
   canvasSurfaceRef,
 }: UseCanvasViewportStateOptions) {
@@ -50,8 +50,6 @@ export function useCanvasViewportState({
         exitFocusMode()
         return
       }
-
-      cursorManagerRef.current?.refresh()
 
       if (focusMode) {
         return
@@ -86,7 +84,7 @@ export function useCanvasViewportState({
       userId: localUserId,
       isPublishingSuppressed: isCursorPresenceSuppressed,
     })
-    cursorManager.setReactFlowInstance({ flowToScreenPosition, screenToFlowPosition } as ReactFlowInstance)
+    cursorManager.setReactFlowInstance({ screenToFlowPosition, getViewport } as ReactFlowInstance)
     cursorManager.attach(surface, canvasId)
     cursorManagerRef.current = cursorManager
 
@@ -97,15 +95,7 @@ export function useCanvasViewportState({
 
       cursorManager.destroy()
     }
-  }, [
-    canvasId,
-    canvasSurfaceRef,
-    flowToScreenPosition,
-    isCursorPresenceSuppressed,
-    localUserId,
-    provider,
-    screenToFlowPosition,
-  ])
+  }, [canvasId, canvasSurfaceRef, getViewport, isCursorPresenceSuppressed, localUserId, provider, screenToFlowPosition])
 
   useEffect(() => {
     if (!focusMode) {

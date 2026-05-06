@@ -69,6 +69,12 @@ import {
 } from '@/lib/workspaceNoteLifecycle'
 import { WORKSPACE_NOTE_COMMAND_ORIGIN } from '@/lib/workspaceUndo'
 import { deleteCanvasItemsFromCanvas } from './deleteCanvasItems'
+import {
+  calculateCanvasFitViewport,
+  resolveRenderedNodeBounds,
+  type CanvasFitItemBounds,
+  type CanvasFitVisibleArea,
+} from './canvasFitView'
 
 function deriveImportedDocumentName(content: string, format: 'text' | 'markdown' | 'html'): string {
   const normalizedContent =
@@ -232,6 +238,84 @@ export const useFitNodeInView = () => {
       const viewportY = 100 - nodeTopY * currentViewport.zoom // 100px padding from top
 
       reactFlowInstance.setViewport({ x: viewportX, y: viewportY, zoom: currentViewport.zoom }, { duration: 0 })
+    },
+    [reactFlowInstance, visibleArea]
+  )
+}
+
+const FOLLOW_TARGET_ZOOM = 1 / 1.5
+const FOLLOW_NODE_CENTER_Y_FROM_TOP_RATIO = 0.4
+
+export function calculateFollowNodeViewport(
+  node: {
+    position: { x: number; y: number }
+    measured?: { width?: number; height?: number }
+    width?: number
+    height?: number
+  },
+  visibleArea: { centerX: number; centerY: number },
+  currentViewport: { x: number; y: number; zoom: number }
+): { x: number; y: number; zoom: number } {
+  void currentViewport
+  const zoom = FOLLOW_TARGET_ZOOM
+  const nodeWidth = node.measured?.width || node.width || NODE_LAYOUT.WIDTH
+  const nodeHeight = node.measured?.height || node.height || NODE_LAYOUT.DEFAULT_MEASURED.height
+  const nodeCenterX = node.position.x + nodeWidth / 2
+  const nodeCenterY = node.position.y + nodeHeight / 2
+  const targetCenterY = visibleArea.centerY * 2 * FOLLOW_NODE_CENTER_Y_FROM_TOP_RATIO
+
+  return {
+    x: visibleArea.centerX - nodeCenterX * zoom,
+    y: targetCenterY - nodeCenterY * zoom,
+    zoom,
+  }
+}
+
+const FOLLOW_SECTION_PADDING = 96
+const FOLLOW_MAX_ZOOM = FOLLOW_TARGET_ZOOM
+
+export function calculateFollowSectionViewport(
+  bounds: CanvasFitItemBounds,
+  visibleArea: CanvasFitVisibleArea
+): { x: number; y: number; zoom: number } | null {
+  return calculateCanvasFitViewport([bounds], visibleArea, {
+    padding: FOLLOW_SECTION_PADDING,
+    maxZoom: FOLLOW_MAX_ZOOM,
+  })
+}
+
+export const useFollowNodeInView = () => {
+  const reactFlowInstance = useReactFlow()
+  const visibleArea = useVisibleCanvasArea()
+
+  return useCallback(
+    (nodeId: string): { found: boolean } => {
+      const node = reactFlowInstance.getNode(nodeId)
+      if (!node) return { found: false }
+
+      const viewport = calculateFollowNodeViewport(node, visibleArea, reactFlowInstance.getViewport())
+      reactFlowInstance.setViewport(viewport, { duration: 450 })
+      return { found: true }
+    },
+    [reactFlowInstance, visibleArea]
+  )
+}
+
+export const useFollowSectionInView = () => {
+  const reactFlowInstance = useReactFlow()
+  const visibleArea = useVisibleCanvasArea()
+
+  return useCallback(
+    (sectionId: string): { found: boolean } => {
+      const sectionNode = reactFlowInstance.getNode(sectionId)
+      const bounds = resolveRenderedNodeBounds(sectionNode)
+      if (!bounds) return { found: false }
+
+      const viewport = calculateFollowSectionViewport(bounds, visibleArea)
+      if (!viewport) return { found: false }
+
+      reactFlowInstance.setViewport(viewport, { duration: 450 })
+      return { found: true }
     },
     [reactFlowInstance, visibleArea]
   )

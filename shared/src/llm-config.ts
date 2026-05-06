@@ -1,5 +1,6 @@
 export type LlmProviderName = 'anthropic' | 'openai'
 export type OpenAIReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+export type OpenAIServiceTier = 'default' | 'priority'
 export type LlmModelTier = 'small' | 'medium' | 'big'
 export type LlmSubagentType = 'explore' | 'external'
 export type ThinkingMode = 'adaptive'
@@ -27,11 +28,12 @@ export interface LlmProviderMetadata {
 export const DEFAULT_LLM_PROVIDER: LlmProviderName = 'openai'
 
 export const OPENAI_REASONING_EFFORT_OPTIONS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'] as const
+export const OPENAI_SERVICE_TIER_OPTIONS = ['default', 'priority'] as const
 
 export const OPENAI_DEFAULT_MODEL_TIERS: Record<LlmModelTier, string> = {
-  small: 'gpt-5.4-mini',
-  medium: 'gpt-5.4',
-  big: 'gpt-5.4',
+  small: 'gpt-5.5',
+  medium: 'gpt-5.5',
+  big: 'gpt-5.5',
 }
 
 export const OPENAI_DEFAULT_SUBAGENT_MODEL_TIERS: Record<LlmSubagentType, LlmModelTier> = {
@@ -110,11 +112,27 @@ export function normalizeOpenAIReasoningEffort(value: unknown): OpenAIReasoningE
   return isOpenAIReasoningEffort(normalized) ? normalized : undefined
 }
 
+export function normalizeOpenAIServiceTier(value: unknown): OpenAIServiceTier | undefined {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+
+  const normalized = value.trim().toLowerCase()
+  return isOpenAIServiceTier(normalized) ? normalized : undefined
+}
+
 export function normalizeReasoningEffortForProvider(
   value: unknown,
   provider?: LlmProviderName
 ): OpenAIReasoningEffort | undefined {
   return getEffectiveLlmProvider(provider) === 'openai' ? normalizeOpenAIReasoningEffort(value) : undefined
+}
+
+export function normalizeServiceTierForProvider(
+  value: unknown,
+  provider?: LlmProviderName
+): OpenAIServiceTier | undefined {
+  return getEffectiveLlmProvider(provider) === 'openai' ? normalizeOpenAIServiceTier(value) : undefined
 }
 
 export function supportsReasoningEffortOverride(provider?: LlmProviderName): boolean {
@@ -150,6 +168,10 @@ export function getLlmDefaultsHelpText(provider?: LlmProviderName): string {
 
 function isOpenAIReasoningEffort(value: string): value is OpenAIReasoningEffort {
   return (OPENAI_REASONING_EFFORT_OPTIONS as readonly string[]).includes(value)
+}
+
+function isOpenAIServiceTier(value: string): value is OpenAIServiceTier {
+  return (OPENAI_SERVICE_TIER_OPTIONS as readonly string[]).includes(value)
 }
 
 function describeDefaults(defaults: ProviderExecutionDefaults): string {

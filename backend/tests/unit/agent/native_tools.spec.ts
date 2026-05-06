@@ -51,6 +51,15 @@ function withContext(ctx: ToolContext) {
   return { toolCallId: 'tc-1', experimental_context: ctx }
 }
 
+function extractSectionApplyPayload(command: string): any {
+  const match = command.match(/const payload = ("(?:\\.|[^"\\])*")\nconst url =/)
+  if (!match) {
+    throw new Error(`Could not find section apply payload in command: ${command}`)
+  }
+
+  return JSON.parse(JSON.parse(match[1]))
+}
+
 // ============================================================================
 // Provider dispatch
 // ============================================================================
@@ -172,6 +181,190 @@ test.group('OpenAI read_file tool', () => {
       path: '/workspace/docs/a.md',
       command: 'view',
       status: 'completed',
+    })
+  })
+
+  test('returns image reads as native OpenAI image tool output', async ({ assert }) => {
+    const ctx = createMockContext('openai')
+    const sandbox = ctx.sandboxManager as MockSandboxManager
+    sandbox.isDirectory = async () => false
+    sandbox.exec = async () => ({ stdout: 'iVBORw0KGgo=', stderr: '', exitCode: 0 })
+
+    const tools = createNativeTools(ctx) as any
+    const result = await tools.read_file.execute({ path: '/workspace/images/screenshot.png' }, withContext(ctx))
+    const modelOutput = tools.read_file.toModelOutput({
+      toolCallId: 'tc-1',
+      input: { path: '/workspace/images/screenshot.png' },
+      output: result,
+    })
+
+    assert.deepEqual(result, {
+      isImage: true,
+      data: 'iVBORw0KGgo=',
+      mimeType: 'image/png',
+      path: '/workspace/images/screenshot.png',
+    })
+    assert.deepEqual(modelOutput, {
+      type: 'content',
+      value: [
+        { type: 'text', text: 'Viewing image: /workspace/images/screenshot.png' },
+        { type: 'image-data', data: 'iVBORw0KGgo=', mediaType: 'image/png' },
+      ],
+    })
+  })
+
+  test('returns OpenAI-supported file inputs as native file tool output', async ({ assert }) => {
+    const ctx = createMockContext('openai')
+    const sandbox = ctx.sandboxManager as MockSandboxManager
+    const capturedCommands: string[] = []
+    sandbox.isDirectory = async () => false
+    sandbox.exec = async (command) => {
+      capturedCommands.push(command)
+      if (command.startsWith('wc -c')) {
+        return { stdout: '1024\n', stderr: '', exitCode: 0 }
+      }
+      return { stdout: 'JVBERi0xLjQ=', stderr: '', exitCode: 0 }
+    }
+
+    const tools = createNativeTools(ctx) as any
+    const result = await tools.read_file.execute({ path: '/workspace/docs/report.pdf' }, withContext(ctx))
+    const modelOutput = tools.read_file.toModelOutput({
+      toolCallId: 'tc-1',
+      input: { path: '/workspace/docs/report.pdf' },
+      output: result,
+    })
+
+    assert.deepEqual(capturedCommands, [
+      "wc -c < '/workspace/docs/report.pdf'",
+      "base64 -w 0 '/workspace/docs/report.pdf'",
+    ])
+    assert.deepEqual(result, {
+      isFile: true,
+      data: 'JVBERi0xLjQ=',
+      mimeType: 'application/pdf',
+      path: '/workspace/docs/report.pdf',
+      filename: 'report.pdf',
+    })
+    assert.deepEqual(modelOutput, {
+      type: 'content',
+      value: [
+        { type: 'text', text: 'Viewing file: /workspace/docs/report.pdf' },
+        {
+          type: 'file-data',
+          data: 'JVBERi0xLjQ=',
+          mediaType: 'application/pdf',
+          filename: 'report.pdf',
+        },
+      ],
+    })
+
+    const editorItems = ctx.state.getTimeline().filter((i) => i.type === 'text_editor')
+    assert.equal(editorItems.length, 1)
+    assert.deepInclude(editorItems[0], {
+      type: 'text_editor',
+      path: '/workspace/docs/report.pdf',
+      command: 'view',
+      status: 'completed',
+    })
+  })
+
+  test('returns OpenAI text/code files as line-numbered text', async ({ assert }) => {
+    const ctx = createMockContext('openai')
+    const sandbox = ctx.sandboxManager as MockSandboxManager
+    sandbox.isDirectory = async () => false
+    sandbox.readFile = async () => 'print("hi")\n'
+    sandbox.exec = async () => {
+      throw new Error('text/code reads should not use exec')
+    }
+
+    const tools = createNativeTools(ctx) as any
+    const result = await tools.read_file.execute({ path: '/workspace/scripts/run.py' }, withContext(ctx))
+    const modelOutput = tools.read_file.toModelOutput({
+      toolCallId: 'tc-1',
+      input: { path: '/workspace/scripts/run.py' },
+      output: result,
+    })
+
+    assert.equal(result, '1: print("hi")\n2: ')
+    assert.deepEqual(modelOutput, {
+      type: 'text',
+      value: '1: print("hi")\n2: ',
+    })
+
+    const editorItems = ctx.state.getTimeline().filter((i) => i.type === 'text_editor')
+    assert.equal(editorItems.length, 1)
+    assert.deepInclude(editorItems[0], {
+      type: 'text_editor',
+      path: '/workspace/scripts/run.py',
+      command: 'view',
+      status: 'completed',
+    })
+  })
+
+  test('returns extensionless text files as line-numbered text', async ({ assert }) => {
+    const ctx = createMockContext('openai')
+    const sandbox = ctx.sandboxManager as MockSandboxManager
+    const capturedCommands: string[] = []
+    sandbox.isDirectory = async () => false
+    sandbox.readFile = async () => 'build:\n\tmake test'
+    sandbox.exec = async (command) => {
+      capturedCommands.push(command)
+      return { stdout: Buffer.from('build:\n\tmake test').toString('base64'), stderr: '', exitCode: 0 }
+    }
+
+    const tools = createNativeTools(ctx) as any
+    const result = await tools.read_file.execute({ path: '/workspace/Makefile' }, withContext(ctx))
+
+    assert.deepEqual(capturedCommands, [
+      "if test -f '/workspace/Makefile'; then head -c 8192 '/workspace/Makefile' | base64 -w 0; else exit 1; fi",
+    ])
+    assert.equal(result, '1: build:\n2: \tmake test')
+  })
+
+  test('rejects extensionless binary files as unsupported', async ({ assert }) => {
+    const ctx = createMockContext('openai')
+    const sandbox = ctx.sandboxManager as MockSandboxManager
+    let readFileCalled = false
+    sandbox.isDirectory = async () => false
+    sandbox.readFile = async () => {
+      readFileCalled = true
+      return ''
+    }
+    sandbox.exec = async () => ({ stdout: Buffer.from([0, 1, 2, 3]).toString('base64'), stderr: '', exitCode: 0 })
+
+    const tools = createNativeTools(ctx) as any
+    const result = await tools.read_file.execute({ path: '/workspace/binary' }, withContext(ctx))
+
+    assert.include(result, 'cannot view this file type')
+    assert.isFalse(readFileCalled)
+  })
+
+  test('rejects oversized OpenAI file inputs before base64 encoding', async ({ assert }) => {
+    const ctx = createMockContext('openai')
+    const sandbox = ctx.sandboxManager as MockSandboxManager
+    const capturedCommands: string[] = []
+    sandbox.isDirectory = async () => false
+    sandbox.exec = async (command) => {
+      capturedCommands.push(command)
+      if (command.startsWith('base64')) {
+        throw new Error('oversized files should not be base64 encoded')
+      }
+      return { stdout: `${50 * 1024 * 1024}\n`, stderr: '', exitCode: 0 }
+    }
+
+    const tools = createNativeTools(ctx) as any
+    const result = await tools.read_file.execute({ path: '/workspace/docs/report.pdf' }, withContext(ctx))
+
+    assert.deepEqual(capturedCommands, ["wc -c < '/workspace/docs/report.pdf'"])
+    assert.equal(result, 'Error: OpenAI file inputs must be under 50 MB. /workspace/docs/report.pdf is 50 MB.')
+
+    const editorItems = ctx.state.getTimeline().filter((i) => i.type === 'text_editor')
+    assert.equal(editorItems.length, 1)
+    assert.deepInclude(editorItems[0], {
+      type: 'text_editor',
+      path: '/workspace/docs/report.pdf',
+      command: 'view',
+      status: 'failed',
     })
   })
 
@@ -1178,6 +1371,8 @@ test.group('OpenAI reposition_files tool', () => {
     assert.include(REPOSITION_FILES_DESCRIPTION, '`🧭 Overview`')
     assert.include(REPOSITION_FILES_DESCRIPTION, 'Top-level `canvas` is required once per tool call')
     assert.include(REPOSITION_FILES_DESCRIPTION, 'do not put `canvas` inside individual change objects')
+    assert.include(REPOSITION_FILES_DESCRIPTION, 'Horizontal sections do not use `columns`')
+    assert.include(REPOSITION_FILES_DESCRIPTION, 'backend ignores `columns` before applying the change')
     assert.notInclude(REPOSITION_FILES_DESCRIPTION, 'position | placement')
   })
 
@@ -1423,6 +1618,89 @@ test.group('OpenAI reposition_files tool', () => {
       item?.rawError,
       'Invalid section: create_section now requires location. Use location: { mode: "position", x, y } or location: { mode: "after" | "below", anchorSectionId, gap? }.'
     )
+  })
+
+  test('ignores create_section columns when layout is explicitly horizontal', async ({ assert }) => {
+    const ctx = createMockContext('openai')
+    const sandbox = ctx.sandboxManager as MockSandboxManager
+    const commands: string[] = []
+    sandbox.exec = async (command) => {
+      commands.push(command)
+      if (command.includes('/sections/apply')) {
+        return { stdout: JSON.stringify({ ok: true, paths: ['docs/one.md'] }), stderr: '', exitCode: 0 }
+      }
+
+      return { stdout: '', stderr: '', exitCode: 0 }
+    }
+
+    const tools = createNativeTools(ctx) as any
+    const result = await tools.reposition_files.execute(
+      {
+        canvas: 'docs',
+        changes: [
+          {
+            type: 'create_section',
+            title: 'Input Context',
+            layout: 'horizontal',
+            columns: 1,
+            location: { mode: 'after', anchorSectionId: 'section-1', gap: 400 },
+            paths: ['docs/one.md'],
+          },
+        ],
+      },
+      withContext(ctx)
+    )
+
+    assert.include(result, 'Applied 1 section change')
+    assert.lengthOf(commands, 1)
+
+    const payload = extractSectionApplyPayload(commands[0])
+    assert.deepEqual(payload, {
+      canvasPath: 'docs',
+      changes: [
+        {
+          type: 'create_section',
+          title: 'Input Context',
+          layout: 'horizontal',
+          location: { mode: 'after', anchorSectionId: 'section-1', gap: 400 },
+          paths: ['docs/one.md'],
+        },
+      ],
+    })
+
+    const item = ctx.state.getTimeline().find((timelineItem) => timelineItem.type === 'reposition_files')
+    assert.equal(item?.status, 'completed')
+  })
+
+  test('ignores update_section columns when layout is explicitly horizontal', async ({ assert }) => {
+    const sandbox = new MockSandboxManager()
+    const commands: string[] = []
+    sandbox.exec = async (command) => {
+      commands.push(command)
+      if (command.includes('/sections/apply')) {
+        return { stdout: JSON.stringify({ ok: true, paths: [] }), stderr: '', exitCode: 0 }
+      }
+
+      return { stdout: '', stderr: '', exitCode: 0 }
+    }
+
+    const result = await repositionFilesWithHarness(sandbox, {
+      canvas: 'docs',
+      changes: [{ type: 'update_section', sectionId: 'section-1', layout: 'horizontal', columns: 1 }],
+    })
+
+    assert.deepEqual(result, {
+      status: 'success',
+      paths: ['docs'],
+      message: 'Applied 1 section change.',
+    })
+    assert.lengthOf(commands, 1)
+
+    const payload = extractSectionApplyPayload(commands[0])
+    assert.deepEqual(payload, {
+      canvasPath: 'docs',
+      changes: [{ type: 'update_section', sectionId: 'section-1', layout: 'horizontal' }],
+    })
   })
 
   test('rejects legacy reposition changes before calling the live-state endpoint', async ({ assert }) => {

@@ -23,6 +23,15 @@ export function createInlineSuggestedTaskStartRequest(
   }
 }
 
+export function getSuggestedTaskDedicatedFolderName(task: WorkspaceSuggestedTask): string | null {
+  if (task.shouldCreateDedicatedFolder !== true) {
+    return null
+  }
+
+  const folderName = task.dedicatedFolderName?.trim()
+  return folderName || null
+}
+
 export function shouldRefreshWorkspaceSuggestedTasks(item: {
   type: string
   scope?: unknown

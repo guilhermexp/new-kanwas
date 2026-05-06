@@ -9,6 +9,7 @@ test.group('LlmDefaultConfigService', () => {
       llmProvider: 'openai',
       llmModel: 'gpt-5.5',
       reasoningEffort: undefined,
+      llmServiceTier: undefined,
     })
   })
 
@@ -22,6 +23,7 @@ test.group('LlmDefaultConfigService', () => {
       llmProvider: 'openai',
       llmModel: 'gpt-5.4-mini',
       reasoningEffort: undefined,
+      llmServiceTier: undefined,
     })
   })
 
@@ -35,6 +37,7 @@ test.group('LlmDefaultConfigService', () => {
       llmProvider: 'anthropic',
       llmModel: undefined,
       reasoningEffort: undefined,
+      llmServiceTier: undefined,
     })
   })
 
@@ -48,6 +51,32 @@ test.group('LlmDefaultConfigService', () => {
       llmProvider: 'openai',
       llmModel: 'gpt-5.5',
       reasoningEffort: 'high',
+      llmServiceTier: undefined,
+    })
+  })
+
+  test('inherits global OpenAI service tier when effective provider is OpenAI', ({ assert }) => {
+    const config = resolveEffectiveLlmConfig({}, { llmProvider: 'openai', llmServiceTier: 'priority' })
+
+    assert.deepEqual(config, {
+      llmProvider: 'openai',
+      llmModel: undefined,
+      reasoningEffort: undefined,
+      llmServiceTier: 'priority',
+    })
+  })
+
+  test('does not apply OpenAI service tier to per-user Anthropic provider', ({ assert }) => {
+    const config = resolveEffectiveLlmConfig(
+      { llmProvider: 'anthropic' },
+      { llmProvider: 'openai', llmServiceTier: 'priority' }
+    )
+
+    assert.deepEqual(config, {
+      llmProvider: 'anthropic',
+      llmModel: undefined,
+      reasoningEffort: undefined,
+      llmServiceTier: undefined,
     })
   })
 
@@ -55,24 +84,49 @@ test.group('LlmDefaultConfigService', () => {
     const updates = normalizeLlmDefaultConfigUpdates({
       llmProvider: 'openai',
       llmModel: ' gpt-5.5 ',
+      llmServiceTier: ' priority ',
     })
 
     assert.deepEqual(updates, {
       llmProvider: 'openai',
       llmModel: 'gpt-5.5',
+      llmServiceTier: 'priority',
     })
   })
 
   test('clears default model when default provider changes without a model payload', ({ assert }) => {
     const updates = normalizeLlmDefaultConfigUpdates(
       { llmProvider: 'anthropic' },
-      { llmProvider: 'openai', llmModel: 'gpt-5.5' }
+      { llmProvider: 'openai', llmModel: 'gpt-5.5', llmServiceTier: 'priority' }
     )
 
     assert.deepEqual(updates, {
       llmProvider: 'anthropic',
       llmModel: null,
+      llmServiceTier: null,
     })
+  })
+
+  test('clears default service tier when explicitly blank', ({ assert }) => {
+    const updates = normalizeLlmDefaultConfigUpdates({ llmServiceTier: '' }, { llmProvider: 'openai' })
+
+    assert.deepEqual(updates, {
+      llmServiceTier: null,
+    })
+  })
+
+  test('rejects invalid OpenAI service tier', ({ assert }) => {
+    assert.throws(
+      () => normalizeLlmDefaultConfigUpdates({ llmProvider: 'openai', llmServiceTier: 'fast' }),
+      /Invalid OpenAI service tier default/
+    )
+  })
+
+  test('rejects service tier defaults for Anthropic', ({ assert }) => {
+    assert.throws(
+      () => normalizeLlmDefaultConfigUpdates({ llmProvider: 'anthropic', llmServiceTier: 'priority' }),
+      /Service tier defaults are only supported for OpenAI/
+    )
   })
 
   test('rejects unknown default config fields', ({ assert }) => {

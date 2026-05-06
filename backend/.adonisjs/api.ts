@@ -108,8 +108,8 @@ type WorkspacesIdOrganizationGetHead = {
   response: MakeNonSerializedTuyauResponse<import('../app/controllers/organizations_controller.ts').default['showCurrent'], false>
 }
 type WorkspacesIdOnboardingStartPost = {
-  request: unknown
-  response: MakeNonSerializedTuyauResponse<import('../app/controllers/agent_invocations_controller.ts').default['startOnboarding'], false>
+  request: MakeTuyauRequest<InferInput<typeof import('../app/validators/agent_invocation.ts')['onboardingStartValidator']>>
+  response: MakeNonSerializedTuyauResponse<import('../app/controllers/agent_invocations_controller.ts').default['startOnboarding'], true>
 }
 type WorkspacesIdAgentInvokePost = {
   request: MakeTuyauRequest<InferInput<typeof import('../app/validators/agent_invocation.ts')['invokeValidator']>>

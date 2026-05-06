@@ -1,5 +1,8 @@
 import { createContext, useContext } from 'react'
 import type { AgentMode, ConversationItem } from 'backend/agent'
+import type { AgentInvocationUiOptions } from './invocationOptions'
+
+export type { AgentInvocationUiOptions } from './invocationOptions'
 
 /**
  * Streaming data for a single timeline item.
@@ -32,6 +35,7 @@ export interface ChatState {
   activeTaskId: string | null
   isHydratingTask: boolean
   agentMode: AgentMode
+  activeInvocationOptions: AgentInvocationUiOptions | null
   yoloMode: boolean
   /** Streaming data indexed by timeline item ID (supports parallel streams) */
   streamingItems: Record<string, StreamingData>

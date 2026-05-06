@@ -1,4 +1,4 @@
-import type { ProviderName, ProviderReasoningEffort } from '#agent/providers/types'
+import type { ProviderName, ProviderReasoningEffort, ProviderServiceTier } from '#agent/providers/types'
 import LlmDefaultConfigService, { resolveEffectiveLlmConfig } from '#services/llm_default_config_service'
 import UserConfig from '#models/user_config'
 
@@ -7,6 +7,7 @@ export interface GlobalUserConfig {
   llmProvider?: ProviderName | null
   llmModel?: string | null
   reasoningEffort?: ProviderReasoningEffort | null
+  llmServiceTier?: ProviderServiceTier | null
 }
 
 const DEFAULTS: GlobalUserConfig = {}

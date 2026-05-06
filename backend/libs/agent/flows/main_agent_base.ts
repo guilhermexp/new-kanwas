@@ -20,6 +20,7 @@ interface CreateMainAgentFlowDefinitionOptions {
   provider: ProviderConfig
   mainPromptNames: string[]
   includeSuggestNextTasksTool: boolean
+  terminalToolName?: string
 }
 
 const EXPLORE_SUBAGENT_MAX_OUTPUT_TOKENS = 800
@@ -35,7 +36,7 @@ export function createMainAgentFlowDefinition(
     mainPromptNames: options.mainPromptNames,
     model: options.model,
     maxIterations: 50,
-    terminalToolName: undefined,
+    terminalToolName: options.terminalToolName,
     enableComposio: false,
     providerOptions: options.provider.generationOptions({ modelId: options.model, flowHint: 'execute' }),
     buildTools: (context) => {
@@ -52,7 +53,11 @@ export function createMainAgentFlowDefinition(
         create_skill: createSkillTool,
       }
     },
-    stopWhenFactory: ({ maxIterations }) => [stepCountIs(maxIterations), hasToolCall('ask_question')],
+    stopWhenFactory: ({ maxIterations }) => [
+      stepCountIs(maxIterations),
+      hasToolCall('ask_question'),
+      ...(options.terminalToolName ? [hasToolCall(options.terminalToolName)] : []),
+    ],
     subagents: [
       {
         name: 'explore',

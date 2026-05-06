@@ -4,6 +4,7 @@ import {
   MAX_SUGGESTED_TASKS,
   normalizeSuggestedTaskDrafts,
   normalizeSuggestedTaskResponseTasks,
+  suggestedTaskResponseSchema,
 } from '#agent/workspace_suggested_tasks/normalization'
 
 test.group('workspace suggested task normalization', () => {
@@ -14,12 +15,16 @@ test.group('workspace suggested task normalization', () => {
         headline: '  Review kickoff docs  ',
         description: ' Review the seeded docs and note the open questions. ',
         prompt: ' Read the docs and outline the next steps. ',
+        shouldCreateDedicatedFolder: true,
+        dedicatedFolderName: 'kickoff-review',
       },
       {
         emoji: '🧭',
         headline: 'Review   kickoff docs',
         description: 'Review the seeded docs and note the open questions.',
         prompt: 'Read the docs and outline the next steps.',
+        shouldCreateDedicatedFolder: true,
+        dedicatedFolderName: 'kickoff-review',
       },
     ] as const
 
@@ -30,6 +35,8 @@ test.group('workspace suggested task normalization', () => {
     assert.equal(normalized[0].headline, 'Review kickoff docs')
     assert.equal(normalized[0].description, 'Review the seeded docs and note the open questions.')
     assert.equal(normalized[0].prompt, 'Read the docs and outline the next steps.')
+    assert.equal(normalized[0].shouldCreateDedicatedFolder, true)
+    assert.equal(normalized[0].dedicatedFolderName, 'kickoff-review')
     assert.equal(normalized[0].id, normalizedAgain[0].id)
     assert.match(normalized[0].id, /^review-kickoff-docs-/)
   })
@@ -61,5 +68,36 @@ test.group('workspace suggested task normalization', () => {
 
     assert.lengthOf(normalized, 1)
     assert.match(normalized[0].id, /^explore-kickoff-docs-/)
+  })
+
+  test('requires dedicated folder name when the generated task asks for a dedicated folder', ({ assert }) => {
+    const validResult = suggestedTaskResponseSchema.safeParse({
+      tasks: [
+        {
+          id: 'activation-plan',
+          emoji: '🧪',
+          headline: 'Pressure-test activation',
+          description: 'Find the smallest activation proof worth building next.',
+          prompt: 'Review the workspace and define the sharpest activation test.',
+          shouldCreateDedicatedFolder: true,
+          dedicatedFolderName: 'activation-plan',
+        },
+      ],
+    })
+    const missingNameResult = suggestedTaskResponseSchema.safeParse({
+      tasks: [
+        {
+          id: 'activation-plan',
+          emoji: '🧪',
+          headline: 'Pressure-test activation',
+          description: 'Find the smallest activation proof worth building next.',
+          prompt: 'Review the workspace and define the sharpest activation test.',
+          shouldCreateDedicatedFolder: true,
+        },
+      ],
+    })
+
+    assert.isTrue(validResult.success)
+    assert.isFalse(missingNameResult.success)
   })
 })

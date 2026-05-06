@@ -75,14 +75,30 @@ test.group('user_llm_config', () => {
     assert.isTrue(hasUserLlmOverrides({ reasoningEffort: 'high' }))
   })
 
+  test('provider selection keeps effective admin service tier', ({ assert }) => {
+    const selection = getProviderSelectionFromUserConfig({ llmServiceTier: 'priority' })
+
+    assert.deepEqual(selection, {
+      provider: undefined,
+      model: undefined,
+      reasoningEffort: undefined,
+      serviceTier: 'priority',
+    })
+    assert.isTrue(hasUserLlmOverrides({ llmServiceTier: 'priority' }))
+  })
+
   test('provider selection inherits admin defaults', ({ assert }) => {
-    const selection = getProviderSelectionFromUserConfig({}, { llmProvider: 'openai', llmModel: 'gpt-5.5' })
+    const selection = getProviderSelectionFromUserConfig(
+      {},
+      { llmProvider: 'openai', llmModel: 'gpt-5.5', llmServiceTier: 'priority' }
+    )
 
     assert.deepEqual(selection, {
       provider: 'openai',
       model: 'gpt-5.5',
       reasoningEffort: undefined,
+      serviceTier: 'priority',
     })
-    assert.isTrue(hasUserLlmOverrides({}, { llmProvider: 'openai', llmModel: 'gpt-5.5' }))
+    assert.isTrue(hasUserLlmOverrides({}, { llmProvider: 'openai', llmModel: 'gpt-5.5', llmServiceTier: 'priority' }))
   })
 })

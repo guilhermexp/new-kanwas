@@ -110,6 +110,11 @@ function createState() {
       },
     ],
     invocationId: 'invocation-latest',
+    agentMode: 'direct',
+    activeInvocationOptions: {
+      mode: 'thinking',
+      follow: true,
+    },
     activeTaskId: 'task-1',
     panelView: 'chat',
     isHydratingTask: false,
@@ -214,16 +219,20 @@ describe('useSendMessage edit flow', () => {
       },
     })
 
-    const result = await useSendMessage()(
-      'Question',
-      'canvas-1',
-      'invocation-1',
-      ['node-1', 'node-2'],
-      undefined,
-      ['node-2'],
-      undefined,
-      null
-    )
+    const result = await useSendMessage()({
+      message: 'Question',
+      canvasId: 'canvas-1',
+      invocationId: 'invocation-1',
+      invocationOptions: {
+        mode: 'thinking',
+        follow: true,
+      },
+      selectedNodeIds: ['node-1', 'node-2'],
+      files: undefined,
+      mentionedNodeIds: ['node-2'],
+      mentions: undefined,
+      textSelection: null,
+    })
 
     expect(result).toEqual({
       ok: true,
@@ -236,6 +245,7 @@ describe('useSendMessage edit flow', () => {
       mentionedNodeIds: ['node-2'],
     })
     expect(lastInvokePayload()).toMatchObject({
+      mode: 'thinking',
       workspace_tree: '/workspace\n`-- research',
       canvas_path: 'research',
       active_canvas_context: 'Active canvas: /workspace/research/\n\nSections:\n- none',
@@ -250,22 +260,24 @@ describe('useSendMessage edit flow', () => {
 
     const { state, sendMessage } = setupSendMessage()
 
-    const sendPromise = sendMessage(
-      'Edited follow-up question',
-      'canvas-1',
-      null,
-      null,
-      undefined,
-      null,
-      undefined,
-      null,
-      {
-        edit: {
-          editedInvocationId: 'invocation-2',
-          editedTimelineItemId: 'user-2',
-        },
-      }
-    )
+    const sendPromise = sendMessage({
+      message: 'Edited follow-up question',
+      canvasId: 'canvas-1',
+      invocationId: null,
+      invocationOptions: {
+        mode: 'thinking',
+        follow: true,
+      },
+      selectedNodeIds: null,
+      files: undefined,
+      mentionedNodeIds: null,
+      mentions: undefined,
+      textSelection: null,
+      edit: {
+        editedInvocationId: 'invocation-2',
+        editedTimelineItemId: 'user-2',
+      },
+    })
 
     expect(state.activeTaskId).toBe('task-1')
     expect(state.streamingItems).toEqual({})
@@ -309,23 +321,26 @@ describe('useSendMessage edit flow', () => {
     const { state, sendMessage } = setupSendMessage()
     const previousTimeline = [...state.timeline]
     const previousStreamingItems = { ...state.streamingItems }
+    const previousActiveInvocationOptions = { ...state.activeInvocationOptions! }
 
-    const result = await sendMessage(
-      'Edited follow-up question',
-      'canvas-1',
-      null,
-      null,
-      undefined,
-      null,
-      undefined,
-      null,
-      {
-        edit: {
-          editedInvocationId: 'invocation-2',
-          editedTimelineItemId: 'user-2',
-        },
-      }
-    )
+    const result = await sendMessage({
+      message: 'Edited follow-up question',
+      canvasId: 'canvas-1',
+      invocationId: null,
+      invocationOptions: {
+        mode: 'thinking',
+        follow: true,
+      },
+      selectedNodeIds: null,
+      files: undefined,
+      mentionedNodeIds: null,
+      mentions: undefined,
+      textSelection: null,
+      edit: {
+        editedInvocationId: 'invocation-2',
+        editedTimelineItemId: 'user-2',
+      },
+    })
 
     expect(result).toEqual({
       ok: false,
@@ -335,6 +350,7 @@ describe('useSendMessage edit flow', () => {
     expect(state.streamingItems).toEqual(previousStreamingItems)
     expect(state.activeTaskId).toBe('task-1')
     expect(state.invocationId).toBe('invocation-latest')
+    expect(state.activeInvocationOptions).toEqual(previousActiveInvocationOptions)
     expect(mocks.showToast).toHaveBeenCalledWith('Failed to send message. Please try again.', 'error')
   })
 
@@ -355,22 +371,24 @@ describe('useSendMessage edit flow', () => {
 
     const { sendMessage } = setupSendMessage()
 
-    const result = await sendMessage(
-      'Rewritten root prompt',
-      'canvas-1',
-      null,
-      null,
-      undefined,
-      null,
-      undefined,
-      null,
-      {
-        edit: {
-          editedInvocationId: 'invocation-1',
-          editedTimelineItemId: 'user-1',
-        },
-      }
-    )
+    const result = await sendMessage({
+      message: 'Rewritten root prompt',
+      canvasId: 'canvas-1',
+      invocationId: null,
+      invocationOptions: {
+        mode: 'thinking',
+        follow: true,
+      },
+      selectedNodeIds: null,
+      files: undefined,
+      mentionedNodeIds: null,
+      mentions: undefined,
+      textSelection: null,
+      edit: {
+        editedInvocationId: 'invocation-1',
+        editedTimelineItemId: 'user-1',
+      },
+    })
 
     expect(result).toEqual({
       ok: true,

@@ -110,6 +110,11 @@ Each suggestion must include:
 - `description`: one sentence, max 140 characters
 - `prompt`: practical task prompt the agent can execute next; target 400-500 characters, hard max 900 characters
 
+Each suggestion may also include:
+
+- `shouldCreateDedicatedFolder`: optional boolean; set true only when the task should start in its own fresh folder under Projects
+- `dedicatedFolderName`: required when `shouldCreateDedicatedFolder` is true; concise lower-kebab folder name, no path
+
 Before calling `return_suggested_tasks`, check every `prompt` length. If any prompt is over 900 characters, rewrite it to be shorter and sharper instead of dumping extra detail.
 
 Return only the structured payload expected by `return_suggested_tasks`.

@@ -7,6 +7,7 @@ import { CanvasAgent } from '#agent/index'
 import { createTestWorkspace } from '#tests/helpers/workspace'
 import { waitForInvocationCompletion } from '#tests/helpers/invocation'
 import { MockCanvasAgent, createMockAgentEvents } from '#tests/mocks/canvas_agent'
+import { WORKSPACE_ONBOARDING_PROMPT } from '#types/workspace_onboarding'
 
 async function waitForWorkspaceOnboardingStatus(workspaceId: string, status: string) {
   const deadline = Date.now() + 5000
@@ -84,6 +85,12 @@ test.group('Workspace onboarding status', () => {
       const response = await client
         .post(`/workspaces/${workspace.id}/onboarding/start`)
         .bearerToken(loginResponse.body().value)
+        .json({
+          canvas_id: 'onboarding-demo-canvas',
+          workspace_tree: '/workspace\n`-- projects\n    `-- onboarding-demo',
+          canvas_path: 'projects/onboarding-demo',
+          active_canvas_context: 'Active canvas: /workspace/projects/onboarding-demo/\n\nSections:\n- none',
+        })
 
       response.assertStatus(200)
       assert.equal(response.body().onboardingStatus, 'in_progress')
@@ -91,6 +98,8 @@ test.group('Workspace onboarding status', () => {
       const invocation = await Invocation.findOrFail(response.body().invocationId)
       assert.equal(invocation.source, 'onboarding')
       assert.isNull(invocation.parentInvocationId)
+      assert.equal(invocation.canvasId, 'onboarding-demo-canvas')
+      assert.equal(invocation.mode, 'direct')
 
       await workspace.refresh()
       assert.equal(workspace.onboardingStatus, 'in_progress')
@@ -101,7 +110,52 @@ test.group('Workspace onboarding status', () => {
 
       const executionInfo = mockAgent.getExecutionInfo()
       assert.equal(executionInfo.context?.invocationSource, 'onboarding')
-      assert.equal(executionInfo.query, 'Please onboard me into this workspace. Use onboarding skill')
+      assert.equal(executionInfo.context?.canvasId, 'onboarding-demo-canvas')
+      assert.equal(executionInfo.context?.workspaceTree, '/workspace\n`-- projects\n    `-- onboarding-demo')
+      assert.equal(executionInfo.context?.canvasPath, 'projects/onboarding-demo')
+      assert.equal(
+        executionInfo.context?.activeCanvasContext,
+        'Active canvas: /workspace/projects/onboarding-demo/\n\nSections:\n- none'
+      )
+      assert.equal(executionInfo.query, WORKSPACE_ONBOARDING_PROMPT)
+    } finally {
+      app.container.restore(CanvasAgent)
+    }
+  })
+
+  test('starts onboarding with the requested agent mode', async ({ client, assert }) => {
+    const user = await User.create({ email: 'workspace-onboarding-thinking@example.com', password: 'password123' })
+    const workspace = await createTestWorkspace(user, 'Thinking Onboarding Workspace')
+    const mockAgent = new MockCanvasAgent()
+    mockAgent.setMockEvents(createMockAgentEvents())
+
+    app.container.swap(CanvasAgent, () => mockAgent)
+
+    try {
+      const loginResponse = await client.post('/auth/login').json({
+        email: user.email,
+        password: 'password123',
+      })
+
+      const response = await client
+        .post(`/workspaces/${workspace.id}/onboarding/start`)
+        .bearerToken(loginResponse.body().value)
+        .json({
+          canvas_id: 'onboarding-demo-canvas',
+          mode: 'thinking',
+        })
+
+      response.assertStatus(200)
+
+      const invocation = await Invocation.findOrFail(response.body().invocationId)
+      assert.equal(invocation.source, 'onboarding')
+      assert.equal(invocation.mode, 'thinking')
+
+      await waitForInvocationCompletion(invocation.id)
+
+      const executionInfo = mockAgent.getExecutionInfo()
+      assert.equal(executionInfo.context?.invocationSource, 'onboarding')
+      assert.equal(executionInfo.context?.agentMode, 'thinking')
     } finally {
       app.container.restore(CanvasAgent)
     }

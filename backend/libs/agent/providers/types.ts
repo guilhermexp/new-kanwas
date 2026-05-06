@@ -3,10 +3,11 @@ import type { OpenAIResponsesProviderOptions } from '@ai-sdk/openai'
 import type { LanguageModel, ModelMessage } from 'ai'
 import type { ContextualLoggerContract } from '#contracts/contextual_logger'
 import type { ModelTier, SubagentType } from '../types.js'
-import type { LlmProviderName, OpenAIReasoningEffort } from 'shared/llm-config'
+import type { LlmProviderName, OpenAIReasoningEffort, OpenAIServiceTier } from 'shared/llm-config'
 
 export type ProviderName = LlmProviderName
 export type ProviderReasoningEffort = OpenAIReasoningEffort
+export type ProviderServiceTier = OpenAIServiceTier
 
 type BaseProviderOptions = Record<string, Record<string, unknown>>
 
@@ -33,6 +34,7 @@ export type OpenAIMessagePhase = NonNullable<NonNullable<AgentProviderMessageOpt
 export interface ProviderOverrideOptions {
   model?: string
   reasoningEffort?: ProviderReasoningEffort
+  serviceTier?: ProviderServiceTier
 }
 
 export interface ProviderRuntimeOptions {
@@ -43,6 +45,7 @@ export interface ProviderSelection {
   provider?: ProviderName
   model?: string
   reasoningEffort?: string
+  serviceTier?: string
 }
 
 /** Describes the task shape so the provider can pick appropriate generation settings. */

@@ -7,6 +7,7 @@ type UIState = {
   sidebarWidth: number
   chatWidth: number
   explorerSplitPercent: number
+  agentFollowMode: boolean
 }
 
 export const DEFAULT_UI_STATE: UIState = {
@@ -16,6 +17,7 @@ export const DEFAULT_UI_STATE: UIState = {
   sidebarWidth: 220,
   chatWidth: 480,
   explorerSplitPercent: 65,
+  agentFollowMode: true,
 }
 
 function readStoredBoolean(value: unknown, fallback: boolean): boolean {
@@ -37,6 +39,7 @@ export function coerceStoredUIState(stored: unknown): UIState {
     sidebarWidth: readStoredNumber(data.sidebarWidth, DEFAULT_UI_STATE.sidebarWidth),
     chatWidth: readStoredNumber(data.chatWidth, DEFAULT_UI_STATE.chatWidth),
     explorerSplitPercent: readStoredNumber(data.explorerSplitPercent, DEFAULT_UI_STATE.explorerSplitPercent),
+    agentFollowMode: readStoredBoolean(data.agentFollowMode, DEFAULT_UI_STATE.agentFollowMode),
   }
 }
 
@@ -79,6 +82,8 @@ export const disableFullScreenMode = () => (ui.fullScreenMode = false)
 export const setSidebarWidth = (width: number) => (ui.sidebarWidth = width)
 export const setChatWidth = (width: number) => (ui.chatWidth = width)
 export const setExplorerSplitPercent = (percent: number) => (ui.explorerSplitPercent = percent)
+export const setAgentFollowMode = (enabled: boolean) => (ui.agentFollowMode = enabled)
+export const toggleAgentFollowMode = () => (ui.agentFollowMode = !ui.agentFollowMode)
 
 // Focus mode state - separate proxy, NOT persisted to localStorage
 type FocusState = {
@@ -193,6 +198,7 @@ export function useUI() {
     sidebarWidth: snap.sidebarWidth,
     chatWidth: snap.chatWidth,
     explorerSplitPercent: snap.explorerSplitPercent,
+    agentFollowMode: snap.agentFollowMode,
     toggleSidebar,
     openSidebar,
     closeSidebar,
@@ -205,5 +211,7 @@ export function useUI() {
     setSidebarWidth,
     setChatWidth,
     setExplorerSplitPercent,
+    setAgentFollowMode,
+    toggleAgentFollowMode,
   }
 }

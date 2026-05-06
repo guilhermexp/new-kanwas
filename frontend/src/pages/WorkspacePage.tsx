@@ -28,16 +28,36 @@ import { describeConnectionLoss } from '@/lib/liveConnection'
 import { useWorkspaceStructure } from '@/hooks/useWorkspaceStructure'
 import thinkingAnimation from '@/assets/thinking-animation.png'
 import {
+  type CanvasFitRequest,
   getInitialFitOverlayStyle,
+  getFollowRequestAfterHandledFit,
   getWorkspaceRouteForCanvas,
   normalizeRouteCanvasPath,
+  type PendingFollowAfterFit,
   resolveCanvasFromRoute,
   shouldShowActiveCanvasInitialFitOverlay,
   shouldKeepProgrammaticNodeTarget,
 } from './workspacePageState'
 import type { Workspace } from '@/api/client'
+import { getAgentCanvasFollowRequestKey, type AgentCanvasFollowRequest } from '@/components/chat/agentFileFollow'
 
 const RECONNECTING_INDICATOR_DELAY_MS = 20_000
+
+function areStringArraysEqual(left: readonly string[], right: readonly string[]) {
+  return left.length === right.length && left.every((value, index) => value === right[index])
+}
+
+function areFollowRequestsEqual(left: AgentCanvasFollowRequest | null, right: AgentCanvasFollowRequest | null) {
+  if (left === right) {
+    return true
+  }
+
+  if (!left || !right) {
+    return false
+  }
+
+  return getAgentCanvasFollowRequestKey(left) === getAgentCanvasFollowRequestKey(right)
+}
 
 function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: string; workspace?: Workspace }) {
   const {
@@ -61,11 +81,14 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
+  const [followRequest, setFollowRequest] = useState<AgentCanvasFollowRequest | null>(null)
   const [fitSelectedNode, setFitSelectedNode] = useState(true)
   const selectedNodeIdRef = useRef<string | null>(null)
   selectedNodeIdRef.current = selectedNodeId
   const focusedNodeIdRef = useRef<string | null>(null)
   focusedNodeIdRef.current = focusedNodeId
+  const followRequestRef = useRef<AgentCanvasFollowRequest | null>(null)
+  followRequestRef.current = followRequest
   const selectedNodeIdsRef = useRef<string[]>([])
   selectedNodeIdsRef.current = selectedNodeIds
   // Canvas transition state for fade effect
@@ -91,7 +114,10 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
     focus?: boolean
   } | null>(null)
   const fitCanvasRequestSequenceRef = useRef(0)
-  const [fitCanvasRequest, setFitCanvasRequest] = useState<{ canvasId: string; key: string } | null>(null)
+  const [fitCanvasRequest, setFitCanvasRequest] = useState<CanvasFitRequest | null>(null)
+  const fitCanvasRequestRef = useRef<CanvasFitRequest | null>(null)
+  fitCanvasRequestRef.current = fitCanvasRequest
+  const pendingFollowAfterFitRef = useRef<PendingFollowAfterFit<AgentCanvasFollowRequest> | null>(null)
   const lastHandledCanvasIdRef = useRef<string | null>(null)
 
   const normalizedRouteCanvasPath = useMemo(() => normalizeRouteCanvasPath(routeCanvasPath), [routeCanvasPath])
@@ -133,6 +159,14 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
     [getCanvasRoute, location.hash, location.pathname, location.search, navigate]
   )
 
+  const setSelectedNodeIdsIfChanged = useCallback((nodeIds: string[]) => {
+    setSelectedNodeIds((currentNodeIds) => (areStringArraysEqual(currentNodeIds, nodeIds) ? currentNodeIds : nodeIds))
+  }, [])
+
+  const setFollowRequestIfChanged = useCallback((request: AgentCanvasFollowRequest | null) => {
+    setFollowRequest((currentRequest) => (areFollowRequestsEqual(currentRequest, request) ? currentRequest : request))
+  }, [])
+
   const restoreSelectionForCanvas = useCallback(
     (canvasId: string, preferredNodeId?: string | null) => {
       const root = rootRef.current
@@ -142,7 +176,7 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
 
       const canvas = findCanvasById(root, canvasId)
       if (!canvas) {
-        setSelectedNodeIds([])
+        setSelectedNodeIdsIfChanged([])
         setSelectedNodeId(null)
         return
       }
@@ -154,29 +188,61 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
       const targetNodeId = preferredNode?.id ?? lastNode?.id ?? nodeItems[0]?.id ?? null
 
       if (!targetNodeId) {
-        setSelectedNodeIds([])
+        setSelectedNodeIdsIfChanged([])
         setSelectedNodeId(null)
         return
       }
 
-      setSelectedNodeIds([targetNodeId])
+      setSelectedNodeIdsIfChanged([targetNodeId])
       setSelectedNodeId(targetNodeId)
       setLastSelectedNode(workspaceId, canvasId, targetNodeId)
     },
-    [workspaceId]
+    [setSelectedNodeIdsIfChanged, workspaceId]
   )
 
-  const requestCanvasFit = useCallback((canvasId: string) => {
+  const applyFollowRequest = useCallback(
+    (request: AgentCanvasFollowRequest) => {
+      setFitSelectedNode(false)
+      setSelectedNodeIdsIfChanged([request.selectedNodeId])
+      setSelectedNodeId(null)
+      setFocusedNodeId(null)
+      setFollowRequestIfChanged(request)
+      setLastSelectedNode(workspaceId, request.canvasId, request.selectedNodeId)
+    },
+    [setFollowRequestIfChanged, setSelectedNodeIdsIfChanged, workspaceId]
+  )
+
+  const requestCanvasFit = useCallback((canvasId: string): CanvasFitRequest => {
     fitCanvasRequestSequenceRef.current += 1
-    setFitCanvasRequest({
+    const request = {
       canvasId,
       key: `${canvasId}:${fitCanvasRequestSequenceRef.current}`,
-    })
+    }
+    setFitCanvasRequest(request)
+    return request
   }, [])
 
-  const handleFitCanvasRequestHandled = useCallback((requestKey: string) => {
-    setFitCanvasRequest((currentRequest) => (currentRequest?.key === requestKey ? null : currentRequest))
-  }, [])
+  const handleFitCanvasRequestHandled = useCallback(
+    (requestKey: string) => {
+      const pendingFollowRequest = getFollowRequestAfterHandledFit({
+        pendingFollow: pendingFollowAfterFitRef.current,
+        fitRequest: fitCanvasRequestRef.current,
+        handledFitRequestKey: requestKey,
+        activeCanvasId: activeCanvasIdRef.current,
+      })
+
+      setFitCanvasRequest((currentRequest) => (currentRequest?.key === requestKey ? null : currentRequest))
+
+      if (pendingFollowAfterFitRef.current?.fitRequestKey === requestKey) {
+        pendingFollowAfterFitRef.current = null
+      }
+
+      if (pendingFollowRequest) {
+        applyFollowRequest(pendingFollowRequest)
+      }
+    },
+    [applyFollowRequest]
+  )
 
   useEffect(() => {
     if (!hasInitiallySynced || !store.root) {
@@ -185,6 +251,7 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
 
     if (normalizedRouteCanvasPath.length > 0 && !resolvedRouteCanvasId) {
       setPendingCanvasAction(null)
+      pendingFollowAfterFitRef.current = null
       setFitSelectedNode(false)
       navigateToCanvas('root', { replace: true })
       return
@@ -209,9 +276,16 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
       return
     }
 
-    setFitCanvasRequest((currentRequest) =>
-      currentRequest && currentRequest.canvasId !== activeCanvasId ? null : currentRequest
-    )
+    setFitCanvasRequest((currentRequest) => {
+      if (currentRequest && currentRequest.canvasId !== activeCanvasId) {
+        if (pendingFollowAfterFitRef.current?.fitRequestKey === currentRequest.key) {
+          pendingFollowAfterFitRef.current = null
+        }
+        return null
+      }
+
+      return currentRequest
+    })
   }, [activeCanvasId])
 
   useEffect(() => {
@@ -220,8 +294,14 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
     }
 
     const pendingAction = pendingCanvasAction
+    const pendingFollow = pendingFollowAfterFitRef.current
+    const pendingFollowTargetsActiveCanvas = pendingFollow?.canvasId === activeCanvasId
     const canvasChanged = lastHandledCanvasIdRef.current !== activeCanvasId
-    if (!canvasChanged && !(pendingAction && pendingAction.canvasId === activeCanvasId)) {
+    if (
+      !canvasChanged &&
+      !(pendingAction && pendingAction.canvasId === activeCanvasId) &&
+      !pendingFollowTargetsActiveCanvas
+    ) {
       return
     }
 
@@ -229,18 +309,26 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
 
     if (canvasChanged) {
       setFocusedNodeId(null)
+      setFollowRequestIfChanged(null)
+      if (pendingFollowAfterFitRef.current && pendingFollowAfterFitRef.current.canvasId !== activeCanvasId) {
+        pendingFollowAfterFitRef.current = null
+      }
     }
 
     if (pendingAction?.canvasId === activeCanvasId) {
+      pendingFollowAfterFitRef.current = null
+
       if (pendingAction.nodeId) {
         setLastSelectedNode(workspaceId, activeCanvasId, pendingAction.nodeId)
       }
 
       if (pendingAction.focus && pendingAction.nodeId) {
-        setSelectedNodeIds([])
+        setSelectedNodeIdsIfChanged([])
         setSelectedNodeId(null)
+        setFollowRequestIfChanged(null)
         setFocusedNodeId(pendingAction.nodeId)
       } else {
+        setFollowRequestIfChanged(null)
         if (!pendingAction.nodeId) {
           setFitSelectedNode(false)
           requestCanvasFit(activeCanvasId)
@@ -252,6 +340,24 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
       return
     }
 
+    if (pendingFollowAfterFitRef.current?.canvasId === activeCanvasId) {
+      const nextPendingFollow = pendingFollowAfterFitRef.current
+      if (!nextPendingFollow.fitRequestKey) {
+        const fitRequest = requestCanvasFit(activeCanvasId)
+        pendingFollowAfterFitRef.current = {
+          ...nextPendingFollow,
+          fitRequestKey: fitRequest.key,
+        }
+      }
+      setFitSelectedNode(false)
+      setSelectedNodeIdsIfChanged([])
+      setSelectedNodeId(null)
+      setFocusedNodeId(null)
+      setFollowRequestIfChanged(null)
+      return
+    }
+
+    pendingFollowAfterFitRef.current = null
     setFitSelectedNode(false)
     requestCanvasFit(activeCanvasId)
     restoreSelectionForCanvas(activeCanvasId)
@@ -261,6 +367,8 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
     pendingCanvasAction,
     requestCanvasFit,
     restoreSelectionForCanvas,
+    setFollowRequestIfChanged,
+    setSelectedNodeIdsIfChanged,
     store.root,
     workspaceId,
   ])
@@ -324,12 +432,14 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
   const handleNodeSelect = useCallback(
     (nodeId: string, canvasId: string) => {
       setFitCanvasRequest(null)
+      setFollowRequestIfChanged(null)
+      pendingFollowAfterFitRef.current = null
 
       if (activeCanvasIdRef.current !== canvasId) {
         setPendingCanvasAction({ canvasId, nodeId })
         navigateToCanvas(canvasId)
       } else {
-        setSelectedNodeIds([nodeId])
+        setSelectedNodeIdsIfChanged([nodeId])
         setSelectedNodeId(nodeId)
         setLastSelectedNode(workspaceId, canvasId, nodeId)
       }
@@ -337,13 +447,15 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
       // Set the selected node (will trigger focus in CanvasFlow)
       setFitSelectedNode(true)
     },
-    [navigateToCanvas, workspaceId]
+    [navigateToCanvas, setFollowRequestIfChanged, setSelectedNodeIdsIfChanged, workspaceId]
   )
 
   // Handle node focus from tree sidebar (double click) - zooms to 100%
   const handleNodeFocus = useCallback(
     (nodeId: string, canvasId: string) => {
       setFitCanvasRequest(null)
+      setFollowRequestIfChanged(null)
+      pendingFollowAfterFitRef.current = null
 
       if (activeCanvasIdRef.current !== canvasId) {
         setPendingCanvasAction({ canvasId, nodeId, focus: true })
@@ -352,7 +464,41 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
         setFocusedNodeId(nodeId)
       }
     },
-    [navigateToCanvas]
+    [navigateToCanvas, setFollowRequestIfChanged]
+  )
+
+  const handleFollowRequest = useCallback(
+    (request: AgentCanvasFollowRequest) => {
+      setFitSelectedNode(false)
+
+      const pendingFollow = pendingFollowAfterFitRef.current
+      if (pendingFollow?.canvasId === request.canvasId) {
+        pendingFollowAfterFitRef.current = {
+          ...pendingFollow,
+          request,
+        }
+        setPendingCanvasAction(null)
+        setFollowRequestIfChanged(null)
+        return
+      }
+
+      if (activeCanvasIdRef.current !== request.canvasId) {
+        setFitCanvasRequest(null)
+        pendingFollowAfterFitRef.current = {
+          canvasId: request.canvasId,
+          request,
+        }
+        setPendingCanvasAction(null)
+        setFollowRequestIfChanged(null)
+        navigateToCanvas(request.canvasId)
+        return
+      }
+
+      setFitCanvasRequest(null)
+      pendingFollowAfterFitRef.current = null
+      applyFollowRequest(request)
+    },
+    [applyFollowRequest, navigateToCanvas, setFollowRequestIfChanged]
   )
 
   // Handle canvas selection from tree sidebar
@@ -363,6 +509,8 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
 
       // Don't fit to node when clicking on canvas - just restore viewport
       setFitSelectedNode(false)
+      setFollowRequestIfChanged(null)
+      pendingFollowAfterFitRef.current = null
 
       // If clicking on already active canvas - just ensure something is selected
       if (canvasId === currentActiveCanvasId) {
@@ -373,7 +521,7 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
       setPendingCanvasAction({ canvasId })
       navigateToCanvas(canvasId)
     },
-    [navigateToCanvas, restoreSelectionForCanvas]
+    [navigateToCanvas, restoreSelectionForCanvas, setFollowRequestIfChanged]
   )
 
   // Handle search result selection with optional content highlight
@@ -431,7 +579,7 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
   // Uses refs to keep callback stable and avoid stale closures
   const handleSelectionChange = useCallback(
     (nodeIds: string[]) => {
-      setSelectedNodeIds(nodeIds)
+      setSelectedNodeIdsIfChanged(nodeIds)
 
       const pendingSelectedNodeId = selectedNodeIdRef.current
       if (!shouldKeepProgrammaticNodeTarget(pendingSelectedNodeId, nodeIds)) {
@@ -441,6 +589,11 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
       const pendingFocusedNodeId = focusedNodeIdRef.current
       if (!shouldKeepProgrammaticNodeTarget(pendingFocusedNodeId, nodeIds)) {
         setFocusedNodeId(null)
+      }
+
+      const pendingFollowRequest = followRequestRef.current
+      if (!shouldKeepProgrammaticNodeTarget(pendingFollowRequest?.selectedNodeId ?? null, nodeIds)) {
+        setFollowRequestIfChanged(null)
       }
 
       // Clear text selection if the selected nodes don't include the text-selected node
@@ -461,23 +614,33 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
         }
       }
     },
-    [workspaceId, textSelectionStore]
+    [setFollowRequestIfChanged, setSelectedNodeIdsIfChanged, workspaceId, textSelectionStore]
   )
 
-  const handleDeselectNode = useCallback((nodeId: string) => {
-    setSelectedNodeIds((prev) => prev.filter((id) => id !== nodeId))
-    if (selectedNodeIdRef.current === nodeId) {
-      setSelectedNodeId(null)
-    }
-    if (focusedNodeIdRef.current === nodeId) {
-      setFocusedNodeId(null)
-    }
-  }, [])
+  const handleDeselectNode = useCallback(
+    (nodeId: string) => {
+      setSelectedNodeIds((prev) => (prev.includes(nodeId) ? prev.filter((id) => id !== nodeId) : prev))
+      if (selectedNodeIdRef.current === nodeId) {
+        setSelectedNodeId(null)
+      }
+      if (focusedNodeIdRef.current === nodeId) {
+        setFocusedNodeId(null)
+      }
+      if (followRequestRef.current?.selectedNodeId === nodeId) {
+        setFollowRequestIfChanged(null)
+      }
+    },
+    [setFollowRequestIfChanged]
+  )
 
   const handleNodeFocused = useCallback(() => {
     setSelectedNodeId(null)
     setFocusedNodeId(null)
   }, [])
+
+  const handleNodeFollowed = useCallback(() => {
+    setFollowRequestIfChanged(null)
+  }, [setFollowRequestIfChanged])
 
   useEffect(() => {
     if (!isReconnecting) {
@@ -568,6 +731,7 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
                       workspaceId={workspaceId}
                       onboardingStatus={workspace?.onboardingStatus}
                       onNodeSelect={handleNodeSelect}
+                      onFollowRequest={handleFollowRequest}
                       onCanvasSelect={handleCanvasSelect}
                       onWorkspaceLinkNavigate={handleWorkspaceLinkNavigate}
                       selectedNodeIds={selectedNodeIds}
@@ -575,7 +739,7 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
                     />
                   )}
 
-                  <div className="flex-1 relative bg-canvas overflow-hidden">
+                  <div className="flex-1 relative z-0 isolate bg-canvas overflow-hidden">
                     <div
                       className="absolute inset-0"
                       style={{
@@ -614,9 +778,11 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
                           selectedNodeIds={selectedNodeIds}
                           selectedNodeId={selectedNodeId}
                           focusedNodeId={focusedNodeId}
+                          followRequest={followRequest}
                           fitSelectedNode={fitSelectedNode}
                           fitCanvasRequestKey={activeCanvasFitRequestKey}
                           onNodeFocused={handleNodeFocused}
+                          onNodeFollowed={handleNodeFollowed}
                           onSelectionChange={handleSelectionChange}
                           onCanvasSelect={handleCanvasSelect}
                           onWorkspaceLinkNavigate={handleWorkspaceLinkNavigate}

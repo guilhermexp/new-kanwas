@@ -100,7 +100,7 @@ export const AddNodeButton = memo(function AddNodeButton({
                 <Tooltip.Portal>
                   <Tooltip.Content className={TOOLTIP_CLASS} sideOffset={10} side="top">
                     {tool.label}
-                    {isArmed ? ' · click canvas to place' : ''}
+                    {''}
                   </Tooltip.Content>
                 </Tooltip.Portal>
               </Tooltip.Root>

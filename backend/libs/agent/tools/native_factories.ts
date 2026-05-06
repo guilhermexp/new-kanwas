@@ -1,3 +1,5 @@
+import { posix as pathPosix } from 'node:path'
+import { TextDecoder } from 'node:util'
 import { anthropic } from '@ai-sdk/anthropic'
 import { tool } from 'ai'
 import { z } from 'zod'
@@ -28,13 +30,56 @@ import {
 } from './native_file_tools.js'
 import { createTextEditorExecute, type TextEditorExecuteInput } from './native_text_editor.js'
 import {
+  OPENAI_FILE_INPUT_MAX_BYTES,
   WORKSPACE_ROOT,
+  formatLineNumberedText,
   formatTextEditorResult,
+  getOpenAIFileInputMimeType,
+  getPathExtension,
+  isAllowedFileType,
+  isFileResult,
   isImageResult,
+  isOpenAITextCodeFile,
   resolveWorkspaceFilePath,
   resolveWorkspacePath,
+  shellQuote,
   type ProgressCallback,
 } from './native_shared.js'
+
+const TEXT_FILE_PROBE_BYTES = 8192
+
+function isProbablyUtf8Text(base64Content: string): boolean {
+  const bytes = Buffer.from(base64Content.trim(), 'base64')
+  if (bytes.length === 0) {
+    return true
+  }
+
+  for (const byte of bytes) {
+    if (byte === 0) {
+      return false
+    }
+    if (byte < 32 && byte !== 9 && byte !== 10 && byte !== 12 && byte !== 13) {
+      return false
+    }
+  }
+
+  try {
+    new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function parseByteCount(value: string): number | null {
+  const bytes = Number.parseInt(value.trim(), 10)
+  return Number.isFinite(bytes) && bytes >= 0 ? bytes : null
+}
+
+function formatFileSize(bytes: number): string {
+  const mb = bytes / (1024 * 1024)
+  return `${mb.toFixed(mb >= 10 ? 0 : 1)} MB`
+}
 
 export function createAnthropicNativeTools(context: ToolContext) {
   let currentWorkingDirectory = WORKSPACE_ROOT
@@ -101,7 +146,12 @@ export function createOpenAITools(context: ToolContext) {
     layout: z.enum(['horizontal', 'grid']).describe('Section layout mode.'),
     x: z.number().describe('Absolute x coordinate for the new section.'),
     y: z.number().describe('Absolute y coordinate for the new section.'),
-    columns: z.number().int().positive().optional().describe('Optional column count when layout is `grid`.'),
+    columns: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe('Optional column count when layout is `grid`; omit when layout is `horizontal`.'),
   })
 
   const relativeCreateSectionSchema = z.object({
@@ -117,7 +167,12 @@ export function createOpenAITools(context: ToolContext) {
         .optional()
         .describe('Optional extra spacing in pixels. Omit to use the default section gap of 400 pixels.'),
     }),
-    columns: z.number().int().positive().optional().describe('Optional column count when layout is `grid`.'),
+    columns: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe('Optional column count when layout is `grid`; omit when layout is `horizontal`.'),
   })
 
   const fileAnchoredCreateSectionSchema = z.object({
@@ -132,7 +187,12 @@ export function createOpenAITools(context: ToolContext) {
           'Workspace-relative path of the existing anchor file. If it is already in a section, the target joins that section; otherwise both files become members of the new section.'
         ),
     }),
-    columns: z.number().int().positive().optional().describe('Optional column count when layout is `grid`.'),
+    columns: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe('Optional column count when layout is `grid`; omit when layout is `horizontal`.'),
   })
 
   const joinSectionSchema = z.object({
@@ -153,7 +213,14 @@ export function createOpenAITools(context: ToolContext) {
       sectionId: z.string().min(1).describe('Existing section ID from metadata.yaml.'),
       title: z.string().min(1).optional().describe('Optional new section title.'),
       layout: z.enum(['horizontal', 'grid']).optional().describe('Optional new section layout.'),
-      columns: z.number().int().positive().optional().describe('Optional grid column count.'),
+      columns: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe(
+          'Optional grid column count. Ignored when this change sets layout to `horizontal`; otherwise only set when the final section layout is `grid`.'
+        ),
     })
     .passthrough()
 
@@ -182,7 +249,12 @@ export function createOpenAITools(context: ToolContext) {
       type: z.literal('create_section'),
       title: z.string().min(1).describe('Unique title for the new section.'),
       layout: z.enum(['horizontal', 'grid']).describe('Section layout mode.'),
-      columns: z.number().int().positive().optional().describe('Optional grid column count.'),
+      columns: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('Optional grid column count. Ignored when layout is `horizontal`; otherwise only set for `grid`.'),
       location: z
         .discriminatedUnion('mode', [repositionAbsoluteLocationSchema, repositionRelativeLocationSchema])
         .optional()
@@ -214,12 +286,106 @@ export function createOpenAITools(context: ToolContext) {
     },
   })
 
+  const createTextEditorTimelineItem = (path: string, execContext: unknown, streamingStatus: string) => {
+    const toolCallId = getToolCallId(execContext)
+    return state.addTimelineItem(
+      {
+        type: 'text_editor',
+        command: 'view',
+        path,
+        status: 'executing',
+        streamingStatus,
+        timestamp: Date.now(),
+        agent,
+      },
+      'text_editor_started',
+      toolCallId
+    )
+  }
+
+  const readLineNumberedTextFile = async (path: string, execContext: unknown) => {
+    const itemId = createTextEditorTimelineItem(path, execContext, 'Reading file...')
+
+    try {
+      const content = await sandboxManager.readFile(path)
+      const totalLines = content.split('\n').length
+      state.updateTimelineItem(
+        itemId,
+        {
+          streamingStatus: `Read ${totalLines} lines`,
+          linesRead: totalLines,
+          totalLines,
+        },
+        'text_editor_progress'
+      )
+      state.updateTimelineItem(itemId, { status: 'completed', streamingStatus: undefined }, 'text_editor_completed')
+      return formatLineNumberedText(content)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      state.updateTimelineItem(itemId, { status: 'failed', error: message }, 'text_editor_failed')
+      return `Error: ${message}`
+    }
+  }
+
+  const isExtensionlessTextFile = async (path: string) => {
+    const result = await sandboxManager.exec(
+      `if test -f ${shellQuote(path)}; then head -c ${TEXT_FILE_PROBE_BYTES} ${shellQuote(path)} | base64 -w 0; else exit 1; fi`
+    )
+    return result.exitCode === 0 && isProbablyUtf8Text(result.stdout)
+  }
+
+  const readNativeOpenAIFileInput = async (path: string, mimeType: string, execContext: unknown) => {
+    const itemId = createTextEditorTimelineItem(path, execContext, 'Reading file...')
+
+    try {
+      const sizeResult = await sandboxManager.exec(`wc -c < ${shellQuote(path)}`)
+      if (sizeResult.exitCode !== 0) {
+        const message = sizeResult.stderr || 'Unknown error'
+        state.updateTimelineItem(itemId, { status: 'failed', error: message }, 'text_editor_failed')
+        return `Error reading file size: ${message}`
+      }
+
+      const sizeBytes = parseByteCount(sizeResult.stdout)
+      if (sizeBytes === null) {
+        const message = `Could not determine file size from: ${sizeResult.stdout.trim() || '<empty>'}`
+        state.updateTimelineItem(itemId, { status: 'failed', error: message }, 'text_editor_failed')
+        return `Error reading file size: ${message}`
+      }
+
+      if (sizeBytes >= OPENAI_FILE_INPUT_MAX_BYTES) {
+        const message = `OpenAI file inputs must be under 50 MB. ${path} is ${formatFileSize(sizeBytes)}.`
+        state.updateTimelineItem(itemId, { status: 'failed', error: message }, 'text_editor_failed')
+        return `Error: ${message}`
+      }
+
+      const result = await sandboxManager.exec(`base64 -w 0 ${shellQuote(path)}`)
+      if (result.exitCode !== 0) {
+        const message = result.stderr || 'Unknown error'
+        state.updateTimelineItem(itemId, { status: 'failed', error: message }, 'text_editor_failed')
+        return `Error reading file: ${message}`
+      }
+
+      state.updateTimelineItem(itemId, { status: 'completed', streamingStatus: undefined }, 'text_editor_completed')
+      return {
+        isFile: true,
+        data: result.stdout.trim(),
+        mimeType,
+        path,
+        filename: pathPosix.basename(path),
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      state.updateTimelineItem(itemId, { status: 'failed', error: message }, 'text_editor_failed')
+      return `Error: ${message}`
+    }
+  }
+
   const readFileTool = tool({
     description:
       'Reads a workspace file or lists a directory in `/workspace`. Use this tool for reading.\n' +
-      '- Supports Markdown, YAML, and images, plus directory listings.\n' +
+      '- Supports directory listings, line-numbered text/code reads, images, and OpenAI file inputs for PDFs, documents, spreadsheets, and presentations.\n' +
       '- Use absolute `/workspace/...` paths.\n' +
-      '- Always reads the full file.',
+      '- Text and images are read directly; OpenAI file inputs are subject to OpenAI extraction and file-size limits.',
     inputSchema: z.object({
       path: z.string().describe('The absolute `/workspace/...` file or directory path to read'),
     }),
@@ -229,6 +395,27 @@ export function createOpenAITools(context: ToolContext) {
         return 'Error: `read_file` only supports paths inside `/workspace`. Use absolute `/workspace/...` paths.'
       }
 
+      if (!(await sandboxManager.isDirectory(resolvedPath))) {
+        const fileCheck = isAllowedFileType(resolvedPath)
+        const openAIFileMimeType = getOpenAIFileInputMimeType(resolvedPath)
+
+        if (!fileCheck.allowed && isOpenAITextCodeFile(resolvedPath)) {
+          return readLineNumberedTextFile(resolvedPath, execContext)
+        }
+
+        if (
+          !fileCheck.allowed &&
+          getPathExtension(resolvedPath) === '' &&
+          (await isExtensionlessTextFile(resolvedPath))
+        ) {
+          return readLineNumberedTextFile(resolvedPath, execContext)
+        }
+
+        if (!fileCheck.allowed && openAIFileMimeType) {
+          return readNativeOpenAIFileInput(resolvedPath, openAIFileMimeType, execContext)
+        }
+      }
+
       const result = await textEditorExecute(
         {
           command: 'view',
@@ -236,7 +423,35 @@ export function createOpenAITools(context: ToolContext) {
         },
         execContext
       )
-      return formatTextEditorResult(result)
+      return result
+    },
+    toModelOutput({ output }) {
+      if (isImageResult(output)) {
+        return {
+          type: 'content' as const,
+          value: [
+            { type: 'text' as const, text: `Viewing image: ${output.path}` },
+            { type: 'image-data' as const, data: output.data, mediaType: output.mimeType },
+          ],
+        }
+      }
+
+      if (isFileResult(output)) {
+        return {
+          type: 'content' as const,
+          value: [
+            { type: 'text' as const, text: `Viewing file: ${output.path}` },
+            {
+              type: 'file-data' as const,
+              data: output.data,
+              mediaType: output.mimeType,
+              filename: output.filename,
+            },
+          ],
+        }
+      }
+
+      return { type: 'text' as const, value: output as string }
     },
   })
 

@@ -33,5 +33,5 @@ export default defineConfig({
       },
     },
   ],
-  onSuccess: `node -e "const f='dist/index.js';const c=require('fs').readFileSync(f,'utf8');require('fs').writeFileSync(f,'#!/usr/bin/env node\\n'+c)"`,
+  onSuccess: `node -e "const fs=require('fs');const f='dist/index.js';const c=fs.readFileSync(f,'utf8');fs.writeFileSync(f,'#!/usr/bin/env node\\n'+c);fs.chmodSync(f,0o755)"`,
 })

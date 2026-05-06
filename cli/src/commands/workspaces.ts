@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import { readGlobalConfig, type GlobalConfig } from '../config.js'
 import { apiFetch } from '../api.js'
+import { selectPrompt } from './select.js'
 
 interface Workspace {
   id: string
@@ -24,6 +25,43 @@ export async function fetchWorkspace(globalConfig: GlobalConfig, id: string): Pr
     throw new Error(`Workspace not found: ${id}`)
   }
   return workspace
+}
+
+export interface ResolveWorkspaceOptions {
+  id?: string
+  name?: string
+  promptTitle?: string
+}
+
+export async function resolveWorkspace(globalConfig: GlobalConfig, opts: ResolveWorkspaceOptions): Promise<Workspace> {
+  if (opts.id) {
+    return await fetchWorkspace(globalConfig, opts.id)
+  }
+
+  const workspaces = await fetchWorkspaces(globalConfig)
+
+  if (workspaces.length === 0) {
+    throw new Error('No workspaces found.')
+  }
+
+  if (opts.name) {
+    const matches = workspaces.filter((ws) => ws.name === opts.name)
+    if (matches.length === 0) {
+      throw new Error(`No workspace named "${opts.name}".`)
+    }
+    if (matches.length > 1) {
+      const lines = matches.map((ws) => `  ${ws.id}  ${ws.name}`).join('\n')
+      throw new Error(`Multiple workspaces named "${opts.name}". Use --id instead:\n${lines}`)
+    }
+    return matches[0]
+  }
+
+  const selected = await selectPrompt(
+    opts.promptTitle ?? 'Select a workspace:',
+    workspaces.map((ws) => ({ label: ws.name, value: ws.id, hint: ws.id }))
+  )
+
+  return workspaces.find((ws) => ws.id === selected)!
 }
 
 export async function workspacesCommand(opts: { json?: boolean }): Promise<void> {

@@ -27,6 +27,7 @@ function createChatState(agentMode: AgentMode = 'thinking') {
     activeTaskId: null,
     isHydratingTask: false,
     agentMode,
+    activeInvocationOptions: null as { mode: AgentMode; follow: boolean } | null,
     yoloMode: false,
     streamingItems: {},
   })
@@ -41,6 +42,12 @@ describe('AgentModeSelector', () => {
     mocks.useChat.mockReturnValue({ state })
     mocks.setAgentMode.mockImplementation((mode: AgentMode) => {
       state.agentMode = mode
+      if (state.invocationId) {
+        state.activeInvocationOptions = {
+          mode,
+          follow: state.activeInvocationOptions?.follow ?? false,
+        }
+      }
     })
 
     container = document.createElement('div')
@@ -99,5 +106,21 @@ describe('AgentModeSelector', () => {
     expect(container.textContent).not.toContain(
       'Prefer fewer questions? Use Direct for more execution and fewer check-ins.'
     )
+  })
+
+  it('uses the active invocation mode when present', async () => {
+    const state = createChatState('direct')
+    state.invocationId = 'invocation-1'
+    state.activeInvocationOptions = {
+      mode: 'thinking',
+      follow: true,
+    }
+    mocks.useChat.mockReturnValue({ state })
+
+    await act(async () => {
+      root.render(<AgentModeSelector />)
+    })
+
+    expect(container.textContent).toContain('Get my brain going')
   })
 })

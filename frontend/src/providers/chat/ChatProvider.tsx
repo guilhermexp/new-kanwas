@@ -9,9 +9,9 @@ import { useAuth } from '@/providers/auth'
 import { useQueryClient } from '@tanstack/react-query'
 import { SocketChannels, SocketServerEvents, type TaskUpsertSocketMessage } from 'backend/socketio'
 import type { AgentEvent, SerializedState } from 'backend/agent'
-import type { AgentMode } from 'backend/agent'
 import { getStreamingItemIdsToClear, toStreamingPatch } from './streaming'
 import { getDerivedChatState } from './derived'
+import { DEFAULT_AGENT_MODE, normalizeAgentInvocationUiOptions, normalizeChatAgentMode } from './invocationOptions'
 
 type AgentSocketMessage = {
   event: AgentEvent
@@ -25,7 +25,6 @@ interface ChatProviderProps {
 
 // Cache for persisted state promises per workspace
 const persistedStateCache = new Map<string, Promise<{ store: ChatState; clear: () => Promise<void> }>>()
-const DEFAULT_AGENT_MODE: AgentMode = 'thinking'
 
 function getPersistedState(workspaceId: string) {
   if (!persistedStateCache.has(workspaceId)) {
@@ -37,6 +36,7 @@ function getPersistedState(workspaceId: string) {
         activeTaskId: null,
         isHydratingTask: false,
         agentMode: DEFAULT_AGENT_MODE,
+        activeInvocationOptions: null,
         yoloMode: false,
         streamingItems: {},
       },
@@ -87,9 +87,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, workspaceI
     if (state.isHydratingTask === undefined) {
       state.isHydratingTask = false
     }
-    if (state.agentMode !== 'thinking' && state.agentMode !== 'direct') {
-      state.agentMode = DEFAULT_AGENT_MODE
-    }
+    state.agentMode = normalizeChatAgentMode(state.agentMode)
+    state.activeInvocationOptions = normalizeAgentInvocationUiOptions(state.activeInvocationOptions)
   }, [state])
 
   // Compute derived state from snapshot (derive-valtio doesn't work with useSnapshot)

@@ -8,6 +8,7 @@ import { SuggestedTasksTimelineItem } from '@/components/chat/SuggestedTasksTime
 import {
   createInlineSuggestedTaskStartRequest,
   createPersistedSuggestedTaskStartRequest,
+  getSuggestedTaskDedicatedFolderName,
   shouldRefreshWorkspaceSuggestedTasks,
 } from '@/components/chat/suggestedTasks'
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -49,13 +50,22 @@ describe('suggested task helpers', () => {
   })
 
   it('deletes persisted copies for global suggestions and refreshes only persisted completions', () => {
-    const task = createTask({ id: 'suggested-task-global' })
+    const task = createTask({
+      id: 'suggested-task-global',
+      shouldCreateDedicatedFolder: true,
+      dedicatedFolderName: 'activation-plan',
+    })
     const globalItem = createSuggestedTasksItem({ tasks: [task] })
     const persistedRequest = createPersistedSuggestedTaskStartRequest(task)
     const inlineRequest = createInlineSuggestedTaskStartRequest(globalItem, task)
 
     expect(persistedRequest.deleteSuggestionId).toBe('suggested-task-global')
+    expect(persistedRequest.task.shouldCreateDedicatedFolder).toBe(true)
+    expect(persistedRequest.task.dedicatedFolderName).toBe('activation-plan')
     expect(inlineRequest.deleteSuggestionId).toBe('suggested-task-global')
+    expect(getSuggestedTaskDedicatedFolderName(task)).toBe('activation-plan')
+    expect(getSuggestedTaskDedicatedFolderName(createTask())).toBeNull()
+    expect(getSuggestedTaskDedicatedFolderName(createTask({ shouldCreateDedicatedFolder: true }))).toBeNull()
     expect(shouldRefreshWorkspaceSuggestedTasks(globalItem)).toBe(true)
     expect(
       shouldRefreshWorkspaceSuggestedTasks(createSuggestedTasksItem({ scope: 'local', hasPersistedCopy: false }))

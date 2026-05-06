@@ -232,6 +232,7 @@ export default class StartAgent {
             llmProvider: userConfig.llmProvider,
             llmModel: userConfig.llmModel,
             reasoningEffort: userConfig.reasoningEffort,
+            llmServiceTier: userConfig.llmServiceTier,
           },
           'Applied effective LLM config'
         )
@@ -672,6 +673,7 @@ export default class StartAgent {
       logger.info({ query: invocation.query.slice(0, 100) }, 'Starting agent.execute()')
       const result = await agent.execute(invocation.query, context, resolvedFlow, undefined, {
         resumeFromState: resumeFromAnsweredQuestion,
+        allowTerminalToolCompletion: true,
       })
       logger.info('agent.execute() completed')
 

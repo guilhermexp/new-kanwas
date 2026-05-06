@@ -36,6 +36,8 @@ test.group('WorkspaceSuggestedTaskGenerationService', (group) => {
                 headline: '  Explore kickoff docs  ',
                 description: ' Review the seeded docs and note the most important open questions. ',
                 prompt: ' Read the key workspace docs and summarize the best next steps for the team. ',
+                shouldCreateDedicatedFolder: true,
+                dedicatedFolderName: 'kickoff-review',
               },
             ],
           },
@@ -57,6 +59,8 @@ test.group('WorkspaceSuggestedTaskGenerationService', (group) => {
     assert.equal(tasks[0].headline, 'Explore kickoff docs')
     assert.equal(tasks[0].description, 'Review the seeded docs and note the most important open questions.')
     assert.equal(tasks[0].prompt, 'Read the key workspace docs and summarize the best next steps for the team.')
+    assert.equal(tasks[0].shouldCreateDedicatedFolder, true)
+    assert.equal(tasks[0].dedicatedFolderName, 'kickoff-review')
     assert.match(tasks[0].id, /^explore-kickoff-docs-/)
 
     assert.isFalse(await fakeSandboxRegistry.hasInvocationForWorkspace(workspace.id))

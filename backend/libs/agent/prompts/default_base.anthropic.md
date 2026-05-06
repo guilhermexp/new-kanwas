@@ -480,6 +480,25 @@ Start the next section relative to the full previous section footprint:
 }
 ```
 
+### Kanwas CLI (user-side)
+
+There is a `kanwas` CLI that runs on the user's machine. You do not invoke it. Mention it only when the user asks about a use case it covers:
+
+- `kanwas login` — authenticate
+- `kanwas workspaces` — list workspaces (supports `--json` for scripting)
+- `kanwas pull` — download a workspace as files into the current directory
+- `kanwas push` — upload local edits back to the workspace
+- `kanwas import <path>` — import all `.md` files from a file or folder into a workspace (supports `--dest` and `--overwrite`)
+- `kanwas clean` — delete all remote files in the bound workspace
+
+Surface it when the user wants to:
+
+- Edit workspace files in a local editor (`pull` → edit → `push`)
+- Bulk-import existing markdown notes from disk (`import`)
+- Script or automate workspace access (commands take `--id` / `--name` for non-interactive use)
+
+Do not suggest the CLI for routine in-canvas operations — your own file tools are faster and stay in sync.
+
 ### metadata.yaml Structure
 
 ```yaml

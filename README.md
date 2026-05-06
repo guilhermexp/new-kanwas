@@ -57,6 +57,60 @@ Open http://localhost:5173 and you're in.
 
 For local development (hot reload, running services with `pnpm dev`) and the architectural walkthrough, see [`docs/SYSTEM_OVERVIEW.md`](./docs/SYSTEM_OVERVIEW.md).
 
+## CLI
+
+`kanwas` is a command-line tool for syncing a workspace with your local filesystem. Useful when you want to edit notes in your editor of choice, bulk-import markdown you already have on disk, or script workspace access from CI or another agent.
+
+### Install
+
+```bash
+npm install -g @kanwas/cli
+```
+
+### Authenticate
+
+```bash
+kanwas login
+```
+
+Opens a browser tab to authorize the CLI. Auth is stored globally in `~/.kanwas/config.json`.
+
+### Edit a workspace locally
+
+```bash
+mkdir my-workspace && cd my-workspace
+kanwas pull            # interactive picker, downloads files into the current directory
+# ...edit files in your editor...
+kanwas push            # uploads local changes back to the workspace
+```
+
+After the first `pull`, the directory is bound to that workspace via `.kanwas.json`. Subsequent `pull` / `push` reuse it automatically.
+
+### Import markdown from disk
+
+```bash
+kanwas import ./notes                       # interactive workspace picker
+kanwas import ./notes --name "My Workspace" # non-interactive, by name
+kanwas import ./intro.md --id <uuid>        # single file, by ID
+kanwas import ./notes --dest research       # place imports under a subfolder
+kanwas import ./notes --overwrite           # replace files that already exist
+```
+
+Walks the source path, picks up every `.md` file (other files are skipped), preserves directory structure, and creates them in the target workspace.
+
+### List / script
+
+```bash
+kanwas workspaces             # list workspaces
+kanwas workspaces --json      # JSON output for scripting
+kanwas pull --id <uuid>       # non-interactive: pin to a specific workspace
+kanwas pull --name "<name>"   # non-interactive: by exact name
+```
+
+All commands accept `--id` or `--name` to skip the interactive picker, which makes them safe to use from CI or wrapping agents.
+
+Source: [`cli/`](./cli) · npm: [`@kanwas/cli`](https://www.npmjs.com/package/@kanwas/cli)
+
 ## Community
 
 Questions, ideas, want to chat with the team?

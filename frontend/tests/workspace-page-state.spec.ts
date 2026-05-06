@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CanvasItem, NodeItem } from 'shared'
 import {
+  getFollowRequestAfterHandledFit,
   getInitialFitOverlayStyle,
   getWorkspaceRouteForCanvas,
   normalizeRouteCanvasPath,
@@ -138,6 +139,48 @@ describe('workspace page state', () => {
         fitCanvasRequest: { canvasId: 'canvas-2' },
       })
     ).toBe(false)
+  })
+
+  it('returns a pending follow only after its matching fit request is handled', () => {
+    expect(
+      getFollowRequestAfterHandledFit({
+        pendingFollow: { canvasId: 'canvas-1', fitRequestKey: 'canvas-1:2', request: 'follow-new' },
+        fitRequest: { canvasId: 'canvas-1', key: 'canvas-1:2' },
+        handledFitRequestKey: 'canvas-1:2',
+        activeCanvasId: 'canvas-1',
+      })
+    ).toBe('follow-new')
+  })
+
+  it('does not return a pending follow for stale fit completions', () => {
+    expect(
+      getFollowRequestAfterHandledFit({
+        pendingFollow: { canvasId: 'canvas-1', fitRequestKey: 'canvas-1:2', request: 'follow-new' },
+        fitRequest: { canvasId: 'canvas-1', key: 'canvas-1:2' },
+        handledFitRequestKey: 'canvas-1:1',
+        activeCanvasId: 'canvas-1',
+      })
+    ).toBeNull()
+
+    expect(
+      getFollowRequestAfterHandledFit({
+        pendingFollow: { canvasId: 'canvas-1', fitRequestKey: 'canvas-1:1', request: 'follow-old' },
+        fitRequest: { canvasId: 'canvas-1', key: 'canvas-1:2' },
+        handledFitRequestKey: 'canvas-1:1',
+        activeCanvasId: 'canvas-1',
+      })
+    ).toBeNull()
+  })
+
+  it('does not return a pending follow when the active canvas no longer matches', () => {
+    expect(
+      getFollowRequestAfterHandledFit({
+        pendingFollow: { canvasId: 'canvas-1', fitRequestKey: 'canvas-1:2', request: 'follow-new' },
+        fitRequest: { canvasId: 'canvas-1', key: 'canvas-1:2' },
+        handledFitRequestKey: 'canvas-1:2',
+        activeCanvasId: 'canvas-2',
+      })
+    ).toBeNull()
   })
 
   it('shows the initial-fit overlay immediately without a fade-in', () => {

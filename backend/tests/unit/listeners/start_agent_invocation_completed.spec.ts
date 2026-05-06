@@ -290,6 +290,9 @@ test.group('StartAgent invocation completion dispatch', (group) => {
 
     assert.isTrue(fakeAgent.loadState.calledOnceWith(savedState))
     assert.isTrue(hydrateParentStub.notCalled)
-    assert.deepEqual(fakeAgent.execute.firstCall.args[4], { resumeFromState: true })
+    assert.deepEqual(fakeAgent.execute.firstCall.args[4], {
+      resumeFromState: true,
+      allowTerminalToolCompletion: true,
+    })
   })
 })

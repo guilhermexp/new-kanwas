@@ -444,7 +444,10 @@ export class CanvasAgent {
         traceError,
         traceInput,
         traceOutput,
-        traceProperties: replayTraceProperties,
+        traceProperties: {
+          ...replayTraceProperties,
+          invocation_source: context.invocationSource ?? undefined,
+        },
       })
 
       // Clean up LLM resources (e.g., Composio sessions)

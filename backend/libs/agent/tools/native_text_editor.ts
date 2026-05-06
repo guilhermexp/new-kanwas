@@ -6,6 +6,7 @@ import {
   IMAGE_EXTENSIONS,
   WORKSPACE_ROOT,
   isAllowedFileType,
+  shellQuote,
   type ProgressCallback,
   type TextEditorResult,
 } from './native_shared.js'
@@ -42,7 +43,7 @@ async function handleView(
 
   if (mimeType) {
     onProgress?.({ streamingStatus: 'Reading image...' })
-    const result = await sandbox.exec(`base64 -w 0 "${path}"`)
+    const result = await sandbox.exec(`base64 -w 0 ${shellQuote(path)}`)
     if (result.exitCode !== 0) {
       return `Error reading image: ${result.stderr || 'Unknown error'}`
     }

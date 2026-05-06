@@ -13,6 +13,7 @@ import {
 } from 'shared/llm-config'
 
 type UserLlmConfigKey = 'llmProvider' | 'llmModel' | 'reasoningEffort'
+type EffectiveLlmConfigKey = UserLlmConfigKey | 'llmServiceTier'
 
 const USER_LLM_CONFIG_KEYS = [
   'llmProvider',
@@ -29,15 +30,15 @@ export interface UserLlmConfigUpdates {
 export class InvalidUserLlmConfigError extends Error {}
 
 export function hasUserLlmOverrides(
-  config: Pick<GlobalUserConfig, UserLlmConfigKey>,
+  config: Pick<GlobalUserConfig, EffectiveLlmConfigKey>,
   defaultConfig: LlmDefaultConfigFields = {}
 ): boolean {
   const selection = getProviderSelectionFromUserConfig(config, defaultConfig)
-  return !!(selection.provider || selection.model || selection.reasoningEffort)
+  return !!(selection.provider || selection.model || selection.reasoningEffort || selection.serviceTier)
 }
 
 export function getProviderSelectionFromUserConfig(
-  config: Pick<GlobalUserConfig, UserLlmConfigKey>,
+  config: Pick<GlobalUserConfig, EffectiveLlmConfigKey>,
   defaultConfig: LlmDefaultConfigFields = {}
 ): ProviderSelection {
   const effectiveConfig = resolveEffectiveLlmConfig(config, defaultConfig)
@@ -45,15 +46,21 @@ export function getProviderSelectionFromUserConfig(
   const model = normalizeLlmModel(effectiveConfig.llmModel)
   const reasoningEffort = resolveReasoningEffort(effectiveConfig.reasoningEffort, provider)
 
-  return {
+  const selection: ProviderSelection = {
     provider,
     model,
     reasoningEffort,
   }
+
+  if (effectiveConfig.llmServiceTier) {
+    selection.serviceTier = effectiveConfig.llmServiceTier
+  }
+
+  return selection
 }
 
 export function resolveProviderFromUserConfig(
-  config: Pick<GlobalUserConfig, UserLlmConfigKey>,
+  config: Pick<GlobalUserConfig, EffectiveLlmConfigKey>,
   runtimeOptions: ProviderRuntimeOptions = {},
   defaultConfig: LlmDefaultConfigFields = {}
 ): ProviderConfig {

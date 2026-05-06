@@ -5,7 +5,7 @@ import { useChat } from '@/providers/chat'
 import { useAuthState } from '@/providers/auth'
 import { useWorkspace, useWorkspaceSnapshot } from '@/providers/workspace'
 import { resolveCanvasPath, findCanvasByPath, findCanvasById } from '@/lib/workspaceUtils'
-import type { CanvasItem } from 'shared'
+import { formatWorkspaceInvokeContext, type CanvasItem } from 'shared'
 import { useSnapshot } from 'valtio'
 import type { DeepReadonly } from 'ts-essentials'
 import { useSendMessage, useOpenTask, useAnswerQuestion, usePrefetchTaskInvocation } from '@/providers/chat/hooks'
@@ -16,6 +16,8 @@ import { useStartWorkspaceOnboarding } from '@/hooks/useWorkspaces'
 import { workspaceSuggestedTasksQueryKey, type WorkspaceSuggestedTask } from '@/api/suggestedTasks'
 import { taskListQueryKey, type TaskListItem } from '@/api/tasks'
 import type { WorkspaceOnboardingStatus } from '@/api/workspaces'
+import { useVisibleCanvasArea } from '@/components/canvas/useVisibleCanvasArea'
+import { ensureDedicatedProjectCanvas, ensureOnboardingDemoCanvas } from '@/lib/onboardingDemoCanvas'
 import thinkingAnimation from '@/assets/thinking-animation.png'
 import { showToast } from '@/utils/toast'
 
@@ -56,12 +58,24 @@ import {
   mergeTimelineWithStreaming,
   type TimelineWithStreamingItem,
 } from './streamingTimeline'
+import type { AgentCanvasFollowRequest } from './agentFileFollow'
+import { useAgentCanvasFollow } from './useAgentCanvasFollow'
+import {
+  createOnboardingAgentInvocationUiOptions,
+  getAgentFollowModeButtonCopy,
+  getDisplayedAgentFollowMode,
+  getInvocationUiOptionsForLaunch,
+  setActiveAgentInvocationFollow,
+  type AgentInvocationUiOptions,
+} from '@/providers/chat/invocationOptions'
 import {
   createInlineSuggestedTaskStartRequest,
   createPersistedSuggestedTaskStartRequest,
+  getSuggestedTaskDedicatedFolderName,
   shouldRefreshWorkspaceSuggestedTasks,
   type SuggestedTaskStartRequest,
 } from './suggestedTasks'
+import { AgentFollowToggleButton } from './AgentFollowToggleButton'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -148,6 +162,7 @@ interface ChatProps {
   workspaceId: string
   onboardingStatus?: WorkspaceOnboardingStatus
   onNodeSelect?: (nodeId: string, canvasId: string) => void
+  onFollowRequest?: (request: AgentCanvasFollowRequest) => void
   onCanvasSelect?: (canvasId: string) => void
   onWorkspaceLinkNavigate?: (href: string) => boolean
   selectedNodeIds: string[]
@@ -158,6 +173,7 @@ export function Chat({
   workspaceId,
   onboardingStatus,
   onNodeSelect,
+  onFollowRequest,
   onCanvasSelect,
   onWorkspaceLinkNavigate,
   selectedNodeIds,
@@ -165,9 +181,10 @@ export function Chat({
 }: ChatProps) {
   const { state, derived } = useChat()
   const authState = useAuthState()
-  const { activeCanvasId, setActiveCanvasId } = useWorkspace()
+  const { activeCanvasId, setActiveCanvasId, store } = useWorkspace()
   const workspaceSnapshot = useWorkspaceSnapshot()
-  const { chatWidth, setChatWidth } = useUI()
+  const { chatWidth, setChatWidth, agentFollowMode, setAgentFollowMode } = useUI()
+  const visibleArea = useVisibleCanvasArea()
   const handleCanvasSelect = onCanvasSelect ?? setActiveCanvasId
 
   const sendMessage = useSendMessage()
@@ -285,6 +302,17 @@ export function Chat({
     return mergeTimelineWithStreaming(snapshot.timeline, snapshot.streamingItems)
   }, [snapshot.timeline, snapshot.streamingItems])
 
+  useAgentCanvasFollow({
+    workspaceId,
+    activeTaskId: snapshot.activeTaskId,
+    invocationId: snapshot.invocationId,
+    activeInvocationOptions: snapshot.activeInvocationOptions,
+    items: timelineWithStreaming,
+    root: workspaceSnapshot.root ? (workspaceSnapshot.root as CanvasItem) : null,
+    activeCanvasId,
+    onFollowRequest,
+  })
+
   const lastRenderedTimelineItem =
     timelineWithStreaming.length > 0 ? timelineWithStreaming[timelineWithStreaming.length - 1] : null
   const renderedTail = useMemo(
@@ -330,6 +358,35 @@ export function Chat({
     currentSize: chatWidth,
   })
 
+  const displayedAgentFollowMode = getDisplayedAgentFollowMode({
+    invocationId: snapshot.invocationId,
+    activeInvocationOptions: snapshot.activeInvocationOptions,
+    defaultFollowMode: agentFollowMode,
+  })
+
+  const getCurrentInvocationOptions = useCallback(
+    (isContinuation: boolean): AgentInvocationUiOptions => {
+      return getInvocationUiOptionsForLaunch({
+        isContinuation,
+        activeInvocationOptions: state.activeInvocationOptions,
+        agentMode: state.agentMode,
+        defaultFollowMode: agentFollowMode,
+      })
+    },
+    [agentFollowMode, state]
+  )
+
+  const agentFollowModeButtonCopy = getAgentFollowModeButtonCopy({
+    invocationId: snapshot.invocationId,
+    enabled: displayedAgentFollowMode,
+  })
+
+  const handleAgentFollowModeToggle = useCallback(() => {
+    const nextFollowMode = !displayedAgentFollowMode
+    setAgentFollowMode(nextFollowMode)
+    setActiveAgentInvocationFollow(state, nextFollowMode)
+  }, [displayedAgentFollowMode, setAgentFollowMode, state])
+
   const handleMessageSubmit = (
     message: string,
     uploadedFiles: File[],
@@ -340,30 +397,30 @@ export function Chat({
 
     const currentEdit = editingMessage
     const invocationId = isTasksView || currentEdit ? null : state.invocationId
+    const invocationOptions = getCurrentInvocationOptions(Boolean(invocationId || currentEdit))
     const mentionedNodeIds = mentions.map((m) => m.id)
 
     if (currentEdit) {
       setEditingMessage(null)
     }
 
-    void sendMessage(
+    void sendMessage({
       message,
-      activeCanvasId,
+      canvasId: activeCanvasId,
       invocationId,
-      selectedNodeIds.length > 0 ? [...selectedNodeIds] : null,
-      uploadedFiles,
-      mentionedNodeIds.length > 0 ? mentionedNodeIds : null,
+      invocationOptions,
+      selectedNodeIds: selectedNodeIds.length > 0 ? [...selectedNodeIds] : null,
+      files: uploadedFiles,
+      mentionedNodeIds: mentionedNodeIds.length > 0 ? mentionedNodeIds : null,
       mentions,
       textSelection,
-      currentEdit
+      edit: currentEdit
         ? {
-            edit: {
-              editedInvocationId: currentEdit.invocationId,
-              editedTimelineItemId: currentEdit.itemId,
-            },
+            editedInvocationId: currentEdit.invocationId,
+            editedTimelineItemId: currentEdit.itemId,
           }
-        : undefined
-    )
+        : undefined,
+    })
     setFiles([])
   }
 
@@ -504,17 +561,42 @@ export function Chat({
       })
 
       try {
-        const result = await sendMessage(
-          suggestedTask.prompt,
-          activeCanvasId,
-          null,
-          null,
-          undefined,
-          null,
-          undefined,
-          null,
-          suggestedTask.source ? { source: suggestedTask.source } : undefined
-        )
+        const dedicatedFolderName = getSuggestedTaskDedicatedFolderName(suggestedTask)
+        let targetCanvasId = activeCanvasId
+
+        if (dedicatedFolderName) {
+          const dedicatedFolderCanvas = ensureDedicatedProjectCanvas({
+            workspaceId,
+            store,
+            folderName: dedicatedFolderName,
+            userId: authState.user?.id,
+            visibleArea: {
+              availableWidth: visibleArea.availableWidth,
+              availableHeight: visibleArea.availableHeight,
+            },
+          })
+
+          handleCanvasSelect(dedicatedFolderCanvas.canvasId)
+          targetCanvasId = dedicatedFolderCanvas.canvasId
+        }
+
+        const result = await sendMessage({
+          message: suggestedTask.prompt,
+          canvasId: targetCanvasId,
+          invocationId: null,
+          invocationOptions: getInvocationUiOptionsForLaunch({
+            isContinuation: false,
+            activeInvocationOptions: state.activeInvocationOptions,
+            agentMode: state.agentMode,
+            defaultFollowMode: agentFollowMode,
+          }),
+          selectedNodeIds: null,
+          files: undefined,
+          mentionedNodeIds: null,
+          mentions: undefined,
+          textSelection: null,
+          source: suggestedTask.source,
+        })
 
         if (!result.ok) {
           return
@@ -539,7 +621,20 @@ export function Chat({
         })
       }
     },
-    [activeCanvasId, deleteSuggestedTask, refetchSuggestedTasks, sendMessage]
+    [
+      activeCanvasId,
+      authState.user?.id,
+      deleteSuggestedTask,
+      agentFollowMode,
+      handleCanvasSelect,
+      refetchSuggestedTasks,
+      sendMessage,
+      state,
+      store,
+      visibleArea.availableHeight,
+      visibleArea.availableWidth,
+      workspaceId,
+    ]
   )
 
   const handlePersistedSuggestedTaskStart = useCallback(
@@ -552,17 +647,39 @@ export function Chat({
   const handleOnboardingStart = useCallback(async () => {
     setFiles([])
     setEditingMessage(null)
+    const onboardingInvocationOptions = createOnboardingAgentInvocationUiOptions()
 
     try {
-      const result = await startWorkspaceOnboarding.mutateAsync()
+      const onboardingDemoCanvas = ensureOnboardingDemoCanvas({
+        workspaceId,
+        store,
+        userId: authState.user?.id,
+        visibleArea: {
+          availableWidth: visibleArea.availableWidth,
+          availableHeight: visibleArea.availableHeight,
+        },
+      })
+      handleCanvasSelect(onboardingDemoCanvas.canvasId)
+
+      const workspaceContext = formatWorkspaceInvokeContext(store, {
+        canvasId: onboardingDemoCanvas.canvasId,
+      })
+
+      const result = await startWorkspaceOnboarding.mutateAsync({
+        canvas_id: onboardingDemoCanvas.canvasId,
+        mode: 'thinking',
+        workspace_tree: workspaceContext.workspaceTree,
+        canvas_path: workspaceContext.canvasPath,
+        active_canvas_context: workspaceContext.activeCanvasContext,
+      })
 
       state.timeline = []
       state.streamingItems = {}
       state.activeTaskId = result.taskId
       state.invocationId = result.invocationId
+      state.activeInvocationOptions = onboardingInvocationOptions
       state.panelView = 'chat'
       state.isHydratingTask = false
-
       void queryClient.invalidateQueries({
         queryKey: taskListQueryKey(workspaceId),
         refetchType: 'active',
@@ -571,10 +688,21 @@ export function Chat({
       if (result.blocked?.reason) {
         showToast(result.blocked.reason, 'error')
       }
-    } catch {
-      // useStartWorkspaceOnboarding owns the user-facing error toast.
+    } catch (error) {
+      // useStartWorkspaceOnboarding owns the user-facing API error toast.
+      console.error('Failed to start onboarding:', error)
     }
-  }, [queryClient, startWorkspaceOnboarding, state, workspaceId])
+  }, [
+    authState.user?.id,
+    queryClient,
+    handleCanvasSelect,
+    startWorkspaceOnboarding,
+    state,
+    store,
+    visibleArea.availableHeight,
+    visibleArea.availableWidth,
+    workspaceId,
+  ])
 
   const handleSuggestedTaskDelete = useCallback(
     async (suggestedTask: WorkspaceSuggestedTask) => {
@@ -651,14 +779,21 @@ export function Chat({
               <i className="fa-solid fa-chevron-left text-[8px] leading-none shrink-0" aria-hidden="true" />
               <span className="truncate">{activeTask?.title || 'Tasks'}</span>
             </button>
-            <button
-              type="button"
-              onClick={handleMarvinAccessClick}
-              className="max-w-[7rem] shrink-0 cursor-pointer select-none truncate text-right text-sm font-medium text-foreground-muted"
-              title={userLlmHeaderLabel}
-            >
-              {userLlmHeaderLabel}
-            </button>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <AgentFollowToggleButton
+                enabled={displayedAgentFollowMode}
+                copy={agentFollowModeButtonCopy}
+                onToggle={handleAgentFollowModeToggle}
+              />
+              <button
+                type="button"
+                onClick={handleMarvinAccessClick}
+                className="max-w-[7rem] shrink-0 cursor-pointer select-none truncate text-right text-sm font-medium text-foreground-muted"
+                title={userLlmHeaderLabel}
+              >
+                {userLlmHeaderLabel}
+              </button>
+            </div>
           </div>
           {modifiedCanvases.length > 0 && (
             <div className="flex items-center gap-1.5 text-xs text-sidebar-icon mt-1 pl-[14px] min-w-0">

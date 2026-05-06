@@ -62,6 +62,8 @@ html {
   --chat-chip-text: var(--foreground);
   --chat-clear-bg: #f3f0e9;
   --chat-link: var(--palette-amber);
+  --question-option-hover-bg: #f4f0e9;
+  --question-option-hover-border: #f1eade;
 
   /* === Chat toolbar buttons === */
   --chat-toolbar-gradient: linear-gradient(180deg, var(--palette-graphite), var(--palette-ink));
@@ -203,6 +205,8 @@ html {
   --chat-chip-text: rgba(198, 197, 197, 0.7);
   --chat-clear-bg: var(--palette-light-gray);
   --chat-link: var(--palette-amber);
+  --question-option-hover-bg: var(--palette-selection);
+  --question-option-hover-border: var(--outline);
 
   /* === Chat toolbar === */
   --chat-toolbar-gradient: none;
@@ -391,6 +395,8 @@ html {
   /* Chat chips */
   --color-chat-chip: var(--chat-chip-bg);
   --color-chat-chip-text: var(--chat-chip-text);
+  --color-question-option-hover-bg: var(--question-option-hover-bg);
+  --color-question-option-hover-border: var(--question-option-hover-border);
 }
 
 /* Fix react-arborist focus blue on tree rows */
@@ -950,8 +956,6 @@ body {
   padding-top: 0 !important;
 }
 
-
-
 .bn-editor > .bn-block-group > .bn-block-outer:first-child h1,
 .bn-editor > .bn-block-group > .bn-block-outer:first-child h2,
 .bn-editor > .bn-block-group > .bn-block-outer:first-child h3 {
@@ -1053,7 +1057,7 @@ body {
 
 .bn-editor table th,
 .bn-editor table td {
-  border: 0 solid #EAE6E0;
+  border: 0 solid #eae6e0;
   border-bottom-width: 1px;
   border-right-width: 1px;
   padding: 6px 12px;
@@ -1144,8 +1148,8 @@ body {
   cursor: pointer;
 }
 
-.bn-block-content[data-content-type="slackMessage"].ProseMirror-selectednode > *,
-.ProseMirror-selectednode > .bn-block-content[data-content-type="slackMessage"] > * {
+.bn-block-content[data-content-type='slackMessage'].ProseMirror-selectednode > *,
+.ProseMirror-selectednode > .bn-block-content[data-content-type='slackMessage'] > * {
   outline: none !important;
 }
 
@@ -1483,16 +1487,16 @@ body {
 /* Canvas add-node toolbar: glassy translucent pill + tools with hover/armed states */
 .canvas-toolbar-pill {
   background: rgba(253, 252, 249, 0.75);
-  backdrop-filter: blur(24px) saturate(1.6);
-  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  backdrop-filter: blur(28px) saturate(1.7);
+  -webkit-backdrop-filter: blur(28px) saturate(1.7);
   box-shadow:
     0 1px 1px 0 rgba(60, 45, 20, 0.04),
     0 10px 30px -10px rgba(60, 45, 20, 0.18),
-    inset 0 0 0 0.5px #E7DCCA;
+    inset 0 0 0 0.5px #e7dcca;
 }
 
 .dark .canvas-toolbar-pill {
-  background: rgba(30, 28, 24, 0.45);
+  background: rgba(30, 28, 24, 0.88);
   box-shadow:
     0 2px 6px 0 rgba(0, 0, 0, 0.3),
     0 12px 30px -10px rgba(0, 0, 0, 0.45),

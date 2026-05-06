@@ -15,6 +15,7 @@ import { DocumentList } from './DocumentList'
 import { ConnectionsFooter } from './ConnectionsFooter'
 import { SkillsFooter } from './SkillsFooter'
 import { SlackFooter } from './SlackFooter'
+import { CliFooter } from './CliFooter'
 
 interface ExplorerProps {
   root: CanvasItem | null
@@ -227,6 +228,7 @@ export function Explorer({
         />
 
         <ConnectionsFooter connectedCount={connectedCount} onClick={() => openConnectionsModal()} />
+        <CliFooter />
         <SlackFooter />
       </div>
 

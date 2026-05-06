@@ -7,6 +7,8 @@ export interface WorkspaceSuggestedTask {
   description: string
   prompt: string
   source?: string
+  shouldCreateDedicatedFolder?: boolean
+  dedicatedFolderName?: string
 }
 
 export interface WorkspaceSuggestedTaskState {

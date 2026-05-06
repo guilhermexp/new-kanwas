@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-import type { LlmProviderName } from 'shared/llm-config'
+import type { LlmProviderName, OpenAIServiceTier } from 'shared/llm-config'
 
 export default class LlmDefaultConfig extends BaseModel {
   @column({ isPrimary: true })
@@ -11,6 +11,9 @@ export default class LlmDefaultConfig extends BaseModel {
 
   @column()
   declare llmModel: string | null
+
+  @column()
+  declare llmServiceTier: OpenAIServiceTier | null
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

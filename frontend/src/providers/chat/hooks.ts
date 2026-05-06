@@ -16,6 +16,11 @@ import {
 } from '@/api/tasks'
 import { formatWorkspaceInvokeContext } from 'shared'
 import { showToast } from '@/utils/toast'
+import {
+  getActiveAgentInvocationUiOptions,
+  setActiveAgentInvocationMode,
+  type AgentInvocationUiOptions,
+} from './invocationOptions'
 
 type TextSelectionPayload = { nodeId: string; nodeName: string; text: string; lineCount: number } | null | undefined
 
@@ -34,7 +39,16 @@ export type SendMessageResult =
       error: unknown
     }
 
-interface SendMessageOptions {
+export interface SendMessageRequest {
+  message: string
+  canvasId: string | null
+  invocationId: string | null
+  invocationOptions: AgentInvocationUiOptions
+  selectedNodeIds?: string[] | null
+  files?: File[]
+  mentionedNodeIds?: string[] | null
+  mentions?: Array<{ id: string; label: string }>
+  textSelection?: TextSelectionPayload
   source?: string
   edit?: {
     editedInvocationId: string
@@ -155,17 +169,19 @@ export const useSendMessage = () => {
   const queryClient = useQueryClient()
 
   return useCallback(
-    async (
-      message: string,
-      canvasId: string | null,
-      invocationId: string | null,
-      selectedNodeIds?: string[] | null,
-      files?: File[],
-      mentionedNodeIds?: string[] | null,
-      mentions?: Array<{ id: string; label: string }>,
-      textSelection?: { nodeId: string; nodeName: string; text: string; lineCount: number } | null,
-      options?: SendMessageOptions
-    ) => {
+    async ({
+      message,
+      canvasId,
+      invocationId,
+      invocationOptions,
+      selectedNodeIds,
+      files,
+      mentionedNodeIds,
+      mentions,
+      textSelection,
+      source,
+      edit,
+    }: SendMessageRequest) => {
       const trimmedMessage = message.trim()
       if (!trimmedMessage) {
         return {
@@ -174,15 +190,23 @@ export const useSendMessage = () => {
         }
       }
 
-      const editContext = options?.edit
+      const editContext = edit
       const editedInvocationId = editContext?.editedInvocationId ?? null
       const isEditing = !!editContext
+      const nextInvocationOptions = {
+        ...invocationOptions,
+      }
 
       const previousState = {
         timeline: [...state.timeline],
         streamingItems: { ...state.streamingItems },
         activeTaskId: state.activeTaskId,
         invocationId: state.invocationId,
+        activeInvocationOptions: state.activeInvocationOptions
+          ? {
+              ...state.activeInvocationOptions,
+            }
+          : null,
         isHydratingTask: state.isHydratingTask,
         panelView: state.panelView,
       }
@@ -202,6 +226,7 @@ export const useSendMessage = () => {
       }
 
       state.isHydratingTask = false
+      state.activeInvocationOptions = nextInvocationOptions
 
       state.panelView = 'chat'
 
@@ -238,8 +263,8 @@ export const useSendMessage = () => {
           textSelection,
           store,
           yoloMode: state.yoloMode,
-          agentMode: state.agentMode,
-          source: options?.source,
+          agentMode: nextInvocationOptions.mode,
+          source,
         })
 
         const response = await tuyau.workspaces({ id: workspaceId }).agent.invoke.$post(payload)
@@ -266,6 +291,7 @@ export const useSendMessage = () => {
 
         state.invocationId = responseData.invocationId
         state.activeTaskId = responseData.taskId
+        state.activeInvocationOptions = nextInvocationOptions
         state.panelView = 'chat'
 
         if (invokeTimeline) {
@@ -327,6 +353,7 @@ export const useSendMessage = () => {
         state.streamingItems = previousState.streamingItems
         state.activeTaskId = previousState.activeTaskId
         state.invocationId = previousState.invocationId
+        state.activeInvocationOptions = previousState.activeInvocationOptions
         state.isHydratingTask = previousState.isHydratingTask
         state.panelView = previousState.panelView
 
@@ -361,6 +388,7 @@ export const useOpenTask = () => {
       if (!isSameInvocation) {
         state.timeline = []
         state.streamingItems = {}
+        state.activeInvocationOptions = null
       }
 
       try {
@@ -416,6 +444,7 @@ export const useClearConversation = () => {
     state.timeline = []
     state.invocationId = null
     state.activeTaskId = null
+    state.activeInvocationOptions = null
     state.isHydratingTask = false
     state.panelView = 'tasks'
     state.streamingItems = {}
@@ -437,6 +466,7 @@ export const useStartNewTask = () => {
     state.timeline = []
     state.invocationId = null
     state.activeTaskId = null
+    state.activeInvocationOptions = null
     state.isHydratingTask = false
     state.panelView = 'chat'
     state.streamingItems = {}
@@ -462,7 +492,7 @@ export const useSetAgentMode = () => {
 
   return useCallback(
     (mode: AgentMode) => {
-      state.agentMode = mode
+      setActiveAgentInvocationMode(state, mode)
     },
     [state]
   )
@@ -518,10 +548,12 @@ export const useAnswerQuestion = () => {
           })
         : undefined
 
+      const invocationOptions = getActiveAgentInvocationUiOptions(state)
+
       const response = await answerInvocationQuestion(state.invocationId, itemId, {
         answers,
         canvas_id: activeCanvasId || null,
-        mode: state.agentMode,
+        mode: invocationOptions.mode,
         yolo_mode: state.yoloMode,
         workspace_tree: workspaceContext?.workspaceTree,
         canvas_path: workspaceContext?.canvasPath ?? undefined,
@@ -532,6 +564,7 @@ export const useAnswerQuestion = () => {
 
       state.invocationId = response.invocationId
       state.activeTaskId = response.taskId
+      state.activeInvocationOptions = invocationOptions
       state.panelView = 'chat'
       state.streamingItems = {}
 

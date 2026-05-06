@@ -4,6 +4,7 @@ import { z } from 'zod'
 import WorkspaceSuggestedTaskService from '#services/workspace_suggested_task_service'
 import { toError } from '#services/error_utils'
 import {
+  MAX_DEDICATED_FOLDER_NAME_LENGTH,
   MAX_DESCRIPTION_LENGTH,
   MAX_HEADLINE_LENGTH,
   MAX_RAW_PROMPT_LENGTH,
@@ -32,8 +33,29 @@ const suggestedTaskDraftInputSchema = z
       .min(1)
       .max(MAX_RAW_PROMPT_LENGTH)
       .describe('The full prompt that should start this task fresh in a new chat.'),
+    shouldCreateDedicatedFolder: z
+      .boolean()
+      .optional()
+      .describe('Set true when this task should start in its own fresh folder under Projects.'),
+    dedicatedFolderName: z
+      .string()
+      .trim()
+      .min(1)
+      .max(MAX_DEDICATED_FOLDER_NAME_LENGTH)
+      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lower-kebab-case with no path separators.')
+      .optional()
+      .describe('Required when shouldCreateDedicatedFolder is true. Concise lower-kebab folder name, no path.'),
   })
   .strict()
+  .superRefine((task, ctx) => {
+    if (task.shouldCreateDedicatedFolder === true && !task.dedicatedFolderName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['dedicatedFolderName'],
+        message: 'dedicatedFolderName is required when shouldCreateDedicatedFolder is true.',
+      })
+    }
+  })
 
 export const suggestNextTasksToolInputSchema = z
   .object({
@@ -45,14 +67,14 @@ export const suggestNextTasksToolInputSchema = z
       .min(1)
       .max(MAX_SUGGESTED_TASKS)
       .describe(
-        'Provide 1-4 concrete, non-overlapping next tasks. Only include emoji, headline, description, and prompt.'
+        'Provide 1-4 concrete, non-overlapping next tasks. Include optional dedicated-folder fields only when the task should start fresh in its own folder.'
       ),
   })
   .strict()
 
 export const suggestNextTasksTool = tool({
   description:
-    'During onboarding, suggest 1-4 concrete next tasks once enough context exists. Prefer `scope = global` so the same tasks also replace the seeded onboarding suggestion in the workspace Tasks panel. Do not invent ids or source fields.',
+    'During onboarding, suggest 1-4 concrete next tasks once enough context exists. Prefer `scope = global` so the same tasks also replace the seeded onboarding suggestion in the workspace Tasks panel. Set shouldCreateDedicatedFolder and dedicatedFolderName only when a task should start in a fresh Projects folder. Do not invent ids or source fields.',
   inputSchema: suggestNextTasksToolInputSchema,
   execute: async ({ scope, tasks }, execContext) => {
     const ctx = getToolContext(execContext)

@@ -222,7 +222,7 @@ Section can be:
 - \`{ mode: "create", title, layout, placement: { mode: "with_file", anchorFilePath }, columns? }\` to place the file with an existing file in the same canvas; if the anchor file is already in a section the new file joins that section, otherwise both files are combined into the new section
 - \`{ mode: "join", title }\` to add the file to an existing section with that unique title in the same canvas
 
-Section titles must be unique within a canvas. Use \`layout: "horizontal"\` for a left-to-right strip, or \`layout: "grid"\` with optional \`columns\` for a compact grid.
+Section titles must be unique within a canvas. Use \`layout: "horizontal"\` for a left-to-right strip, or \`layout: "grid"\` with optional \`columns\` for a compact grid. Only include \`columns\` when \`layout\` is \`"grid"\`; omit \`columns\` for horizontal sections.
 When you create a new section, always format the title as \`<emoji> <title>\`, for example \`🧭 Overview\`. When you join an existing section, use its exact current title.
 
 ${OPENAI_FILE_TOOL_MARKDOWN_DESCRIPTION}
@@ -242,6 +242,8 @@ Supported change types:
 - \`{ type: "update_section", sectionId, title?, layout?, columns? }\` renames a section and/or changes its layout. Use this to convert an existing section to \`layout: "grid"\`; do not create a temporary section just to change layout.
 - \`{ type: "move_files", sectionId, paths }\` moves existing files into an existing section. \`paths\` must be a non-empty array of workspace-relative file paths in the same canvas.
 - \`{ type: "create_section", title, layout, columns?, location, paths }\` creates a new section and moves existing files into it. \`paths\` must be non-empty because empty sections are not preserved.
+
+Horizontal sections do not use \`columns\`. If \`columns\` is accidentally included while the same change explicitly sets \`layout: "horizontal"\`, the backend ignores \`columns\` before applying the change. Otherwise, only include \`columns\` when the final section layout is \`"grid"\`.
 
 For \`create_section.location\`, use exactly one location object:
 - \`{ mode: "position", x, y }\` to create the section at an explicit canvas position
@@ -439,13 +441,14 @@ function validateRepositionSectionChanges(changes: unknown[]): RepositionSection
       if (!hasTitle && !hasLayout && !hasColumns) {
         throw new Error(`${INVALID_SECTION_ERROR_PREFIX} update_section requires title, layout, or columns.`)
       }
+      const shouldIncludeColumns = hasColumns && changeRecord.layout !== 'horizontal'
 
       normalizedChanges.push({
         type: 'update_section',
         sectionId,
         ...(hasTitle ? { title: normalizeRequiredString(changeRecord.title, 'update_section.title') } : {}),
         ...(hasLayout ? { layout: changeRecord.layout as SectionLayout } : {}),
-        ...(hasColumns ? { columns: changeRecord.columns as number } : {}),
+        ...(shouldIncludeColumns ? { columns: changeRecord.columns as number } : {}),
       })
       continue
     }
@@ -466,12 +469,13 @@ function validateRepositionSectionChanges(changes: unknown[]): RepositionSection
     }
 
     const title = normalizeRequiredString(changeRecord.title, 'create_section.title')
+    const shouldIncludeColumns = changeRecord.columns !== undefined && changeRecord.layout !== 'horizontal'
     const paths = validateSectionChangePaths(changeRecord.paths)
     normalizedChanges.push({
       type: 'create_section',
       title,
       layout: changeRecord.layout as SectionLayout,
-      ...(changeRecord.columns !== undefined ? { columns: changeRecord.columns as number } : {}),
+      ...(shouldIncludeColumns ? { columns: changeRecord.columns as number } : {}),
       location: changeRecord.location as RepositionSectionLocationInput,
       paths,
     })

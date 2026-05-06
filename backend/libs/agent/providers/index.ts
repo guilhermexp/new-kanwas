@@ -16,6 +16,7 @@ import {
   normalizeLlmModel,
   normalizeLlmProvider,
   normalizeReasoningEffortForProvider,
+  normalizeServiceTierForProvider,
 } from 'shared/llm-config'
 import { createAnthropicProvider } from './anthropic.js'
 import { createOpenAIProvider } from './openai.js'
@@ -70,6 +71,7 @@ export function createProviderFromConfig(
     {
       model: normalizeLlmModel(selection.model),
       reasoningEffort: normalizeReasoningEffortForProvider(selection.reasoningEffort, normalizedProvider),
+      serviceTier: normalizeServiceTierForProvider(selection.serviceTier, normalizedProvider),
     },
     runtimeOptions,
     baseURL

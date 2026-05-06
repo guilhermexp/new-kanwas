@@ -158,12 +158,12 @@ export const useDuplicateWorkspace = () => {
 export const useStartWorkspaceOnboarding = (workspaceId?: string) => {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => {
+    mutationFn: (body?: api.WorkspaceOnboardingStartPayload) => {
       if (!workspaceId) {
         throw new Error('Workspace ID is required')
       }
 
-      return api.startWorkspaceOnboarding(workspaceId)
+      return api.startWorkspaceOnboarding(workspaceId, body)
     },
     onSuccess: (result) => {
       if (!workspaceId) {

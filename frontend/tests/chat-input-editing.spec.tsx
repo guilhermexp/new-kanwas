@@ -5,9 +5,21 @@ import { proxy } from 'valtio'
 import type { UserMessageItem } from 'backend/agent'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { UserMessage } from '@/components/chat/UserMessage'
+import { ChatContext } from '@/providers/chat/ChatContext'
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const workspaceStore = proxy({ root: null })
+const chatState = proxy({
+  timeline: [],
+  invocationId: null,
+  panelView: 'chat' as const,
+  activeTaskId: null,
+  isHydratingTask: false,
+  agentMode: 'thinking' as const,
+  activeInvocationOptions: null,
+  yoloMode: false,
+  streamingItems: {},
+})
 const setTextSelection = vi.fn()
 const localStorageMock = {
   getItem: vi.fn(() => null),
@@ -42,6 +54,7 @@ vi.mock('@/providers/workspace', () => ({
 vi.mock('@/providers/chat/hooks', () => ({
   useInterruptAgent: () => vi.fn(),
   useStartNewTask: () => vi.fn(),
+  useSetAgentMode: () => vi.fn(),
 }))
 
 vi.mock('@/providers/keyboard', () => ({
@@ -96,31 +109,39 @@ function ChatEditHarness({ onSubmit }: { onSubmit: ReturnType<typeof vi.fn> }) {
   const item = createUserMessageItem()
 
   return (
-    <div>
-      <UserMessage
-        item={item}
-        canEdit
-        onEdit={(message) => {
-          setEditSession({
-            id: `${message.id}:${message.invocationId}`,
-            label: message.message,
-            message: message.message,
-            mentions: message.mentions?.map((mention) => ({ id: mention.id, label: mention.label })),
-          })
-        }}
-      />
-      <ChatInput
-        workspaceId="workspace-1"
-        onSubmit={onSubmit}
-        isProcessing={false}
-        hasPendingQuestion={false}
-        files={files}
-        onFilesChange={setFiles}
-        selectedNodeIds={[]}
-        editSession={editSession}
-        onCancelEdit={() => setEditSession(null)}
-      />
-    </div>
+    <ChatContext.Provider
+      value={{
+        state: chatState,
+        derived: { isProcessing: false, hasPendingQuestion: false },
+        clearPersistedState: async () => undefined,
+      }}
+    >
+      <div>
+        <UserMessage
+          item={item}
+          canEdit
+          onEdit={(message) => {
+            setEditSession({
+              id: `${message.id}:${message.invocationId}`,
+              label: message.message,
+              message: message.message,
+              mentions: message.mentions?.map((mention) => ({ id: mention.id, label: mention.label })),
+            })
+          }}
+        />
+        <ChatInput
+          workspaceId="workspace-1"
+          onSubmit={onSubmit}
+          isProcessing={false}
+          hasPendingQuestion={false}
+          files={files}
+          onFilesChange={setFiles}
+          selectedNodeIds={[]}
+          editSession={editSession}
+          onCancelEdit={() => setEditSession(null)}
+        />
+      </div>
+    </ChatContext.Provider>
   )
 }
 

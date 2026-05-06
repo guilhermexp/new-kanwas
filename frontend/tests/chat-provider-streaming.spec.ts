@@ -21,14 +21,14 @@ describe('chat streaming reducer', () => {
     })
 
     const afterDelta = applyToolStreamingPatch(afterStart, {
-      set: { query: 'retention benchmarks' },
+      set: { objective: 'retention benchmarks' },
     })
 
     expect(afterDelta).toMatchObject({
       type: 'tool',
       text: '',
       toolName: 'web_search',
-      query: 'retention benchmarks',
+      objective: 'retention benchmarks',
     })
   })
 
@@ -87,13 +87,13 @@ describe('chat streaming reducer', () => {
       type: 'tool' as const,
       text: 'old text',
       toolName: 'web_search',
-      query: 'stale query',
+      objective: 'stale objective',
       lineCount: 3,
       lastUpdated: 1,
     }
 
     const next = applyToolStreamingPatch(previous, {
-      clear: ['query', 'lineCount', 'text'],
+      clear: ['objective', 'lineCount', 'text'],
       set: {
         toolName: 'ask_question',
         text: '## Clarifying context',
@@ -107,7 +107,7 @@ describe('chat streaming reducer', () => {
       text: '## Clarifying context',
       phase: 'question_generation',
     })
-    expect(next.query).toBeUndefined()
+    expect(next.objective).toBeUndefined()
     expect(next.lineCount).toBeUndefined()
   })
 
@@ -180,15 +180,15 @@ describe('chat streaming reducer', () => {
       type: 'tool' as const,
       text: '',
       toolName: 'web_search',
-      query: 'stale',
+      objective: 'stale',
       lastUpdated: 1,
     }
 
     const event = createToolStreamingEvent('tool_1', {
-      clear: ['query'],
+      clear: ['objective'],
       set: {
         toolName: 'web_search',
-        query: 'fresh query',
+        objective: 'fresh objective',
       },
     })
 
@@ -199,7 +199,7 @@ describe('chat streaming reducer', () => {
       data: {
         type: 'tool',
         toolName: 'web_search',
-        query: 'fresh query',
+        objective: 'fresh objective',
       },
     })
   })

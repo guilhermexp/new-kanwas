@@ -21,7 +21,7 @@ ARG API_HOST=api.kanwas.ai
 # Copy built static files
 COPY --from=build /app/frontend/dist /usr/share/nginx/html
 
-# Copy nginx configuration for SPA + admin proxy
+# Copy nginx configuration for SPA
 RUN echo "server { \
     listen 80; \
     resolver 1.1.1.1 valid=30s; \

@@ -8,23 +8,55 @@ export const MAX_DESCRIPTION_LENGTH = 140
 export const MAX_PROMPT_LENGTH = 900
 export const MAX_RAW_PROMPT_LENGTH = 2000
 export const MAX_ID_LENGTH = 80
+export const MAX_DEDICATED_FOLDER_NAME_LENGTH = 80
 
-const suggestedTaskBaseSchema = z.object({
+const dedicatedFolderNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(MAX_DEDICATED_FOLDER_NAME_LENGTH)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lower-kebab-case with no path separators.')
+
+const suggestedTaskBaseShape = {
   emoji: z.string().trim().min(1).max(16),
   headline: z.string().trim().min(1).max(MAX_HEADLINE_LENGTH),
   description: z.string().trim().min(1).max(MAX_DESCRIPTION_LENGTH),
   prompt: z.string().trim().min(1).max(MAX_RAW_PROMPT_LENGTH),
-})
+  shouldCreateDedicatedFolder: z.boolean().optional(),
+  dedicatedFolderName: dedicatedFolderNameSchema.optional(),
+}
 
-export const suggestedTaskDraftSchema = suggestedTaskBaseSchema.strict()
+function validateDedicatedFolderHint(
+  task: {
+    shouldCreateDedicatedFolder?: boolean
+    dedicatedFolderName?: string
+  },
+  ctx: z.RefinementCtx
+): void {
+  if (task.shouldCreateDedicatedFolder === true && !task.dedicatedFolderName) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['dedicatedFolderName'],
+      message: 'dedicatedFolderName is required when shouldCreateDedicatedFolder is true.',
+    })
+  }
+}
+
+export const suggestedTaskDraftSchema = z
+  .object(suggestedTaskBaseShape)
+  .strict()
+  .superRefine(validateDedicatedFolderHint)
 
 export const suggestedTaskDraftListSchema = z.object({
   tasks: z.array(suggestedTaskDraftSchema).min(1).max(MAX_SUGGESTED_TASKS),
 })
 
-export const rawSuggestedTaskSchema = suggestedTaskBaseSchema.extend({
-  id: z.string().trim().min(1).max(MAX_ID_LENGTH),
-})
+export const rawSuggestedTaskSchema = z
+  .object({
+    ...suggestedTaskBaseShape,
+    id: z.string().trim().min(1).max(MAX_ID_LENGTH),
+  })
+  .superRefine(validateDedicatedFolderHint)
 
 export const suggestedTaskResponseSchema = z.object({
   tasks: z.array(rawSuggestedTaskSchema).min(1).max(MAX_SUGGESTED_TASKS),
@@ -69,18 +101,29 @@ function normalizeSuggestedTask<T extends SuggestedTaskDraft>(
   const headline = normalizeSingleLine(task.headline, MAX_HEADLINE_LENGTH)
   const description = normalizeSingleLine(task.description, MAX_DESCRIPTION_LENGTH)
   const prompt = normalizeSingleLine(task.prompt, MAX_PROMPT_LENGTH)
+  const shouldCreateDedicatedFolder = task.shouldCreateDedicatedFolder === true
+  const dedicatedFolderName = shouldCreateDedicatedFolder
+    ? normalizeSingleLine(task.dedicatedFolderName ?? '', MAX_DEDICATED_FOLDER_NAME_LENGTH)
+    : undefined
 
-  if (!emoji || !headline || !description || !prompt) {
+  if (!emoji || !headline || !description || !prompt || (shouldCreateDedicatedFolder && !dedicatedFolderName)) {
     return null
   }
 
-  return {
+  const normalized: WorkspaceSuggestedTask = {
     id: buildId(task, headline, prompt),
     emoji,
     headline,
     description,
     prompt,
   }
+
+  if (shouldCreateDedicatedFolder) {
+    normalized.shouldCreateDedicatedFolder = true
+    normalized.dedicatedFolderName = dedicatedFolderName
+  }
+
+  return normalized
 }
 
 function normalizeSingleLine(value: string, maxLength: number): string {

@@ -1,5 +1,6 @@
 import { tuyau } from '@/api/client'
 import type { InvocationStateResponse } from '@/api/tasks'
+import type { AgentMode } from 'backend/agent'
 
 type ApiError = { error?: string; message?: string }
 
@@ -15,6 +16,14 @@ export interface WorkspaceOnboardingStartResponse {
     resetAtUtc?: string | null
     blockedPeriodTypes?: string[]
   }
+}
+
+export interface WorkspaceOnboardingStartPayload {
+  canvas_id?: string | null
+  mode?: AgentMode
+  workspace_tree?: string
+  canvas_path?: string | null
+  active_canvas_context?: string | null
 }
 
 function toError(error: unknown, fallbackMessage: string): Error {
@@ -79,8 +88,11 @@ export const duplicateWorkspace = async (id: string) => {
   return response.data!
 }
 
-export const startWorkspaceOnboarding = async (id: string): Promise<WorkspaceOnboardingStartResponse> => {
-  const response = await tuyau.workspaces({ id }).onboarding.start.$post()
+export const startWorkspaceOnboarding = async (
+  id: string,
+  body?: WorkspaceOnboardingStartPayload
+): Promise<WorkspaceOnboardingStartResponse> => {
+  const response = await tuyau.workspaces({ id }).onboarding.start.$post(body ?? {})
   if (response.error) {
     throw toError(response.error, 'Failed to start onboarding')
   }

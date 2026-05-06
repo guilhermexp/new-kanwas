@@ -4,13 +4,14 @@ import { pullCommand } from './commands/pull.js'
 import { pushCommand } from './commands/push.js'
 import { cleanCommand } from './commands/clean.js'
 import { workspacesCommand } from './commands/workspaces.js'
+import { importCommand } from './commands/import.js'
 
 const program = new Command()
 
 program
   .name('kanwas')
   .description('Sync local directories with Kanwas workspaces')
-  .version('0.1.4')
+  .version('0.2.0')
   .addHelpText(
     'after',
     `
@@ -68,6 +69,27 @@ program
   .action(async () => {
     try {
       await pushCommand()
+    } catch (err) {
+      console.error(err instanceof Error ? err.message : err)
+      process.exit(1)
+    }
+  })
+
+program
+  .command('import <source>')
+  .description('Import markdown files from a file or folder into a workspace')
+  .option('--id <id>', 'Workspace ID (UUID)')
+  .option('--name <name>', 'Workspace name (exact match)')
+  .option('--dest <path>', 'Destination path inside the workspace (default: root)')
+  .option('--overwrite', 'Overwrite files that already exist in the workspace')
+  .action(async (source, opts) => {
+    try {
+      await importCommand(source, {
+        id: opts.id,
+        name: opts.name,
+        dest: opts.dest,
+        overwrite: opts.overwrite,
+      })
     } catch (err) {
       console.error(err instanceof Error ? err.message : err)
       process.exit(1)

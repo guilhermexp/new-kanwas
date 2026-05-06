@@ -64,12 +64,13 @@ function createExecContext(state: State, toolCallId: string) {
   }
 }
 
-function createDraft() {
+function createDraft(overrides: Record<string, unknown> = {}) {
   return {
     emoji: '🧭',
     headline: '  Review kickoff docs  ',
     description: ' Review the seeded docs and note the biggest open questions. ',
     prompt: ' Read the key docs and summarize the next steps. ',
+    ...overrides,
   }
 }
 
@@ -77,7 +78,20 @@ test.group('suggest_next_tasks tool', () => {
   test('schema accepts task drafts directly and rejects model-provided id/source fields', ({ assert }) => {
     const validResult = suggestNextTasksToolInputSchema.safeParse({
       scope: 'global',
-      tasks: [createDraft()],
+      tasks: [
+        createDraft({
+          shouldCreateDedicatedFolder: true,
+          dedicatedFolderName: 'kickoff-review',
+        }),
+      ],
+    })
+    const missingFolderNameResult = suggestNextTasksToolInputSchema.safeParse({
+      scope: 'global',
+      tasks: [
+        createDraft({
+          shouldCreateDedicatedFolder: true,
+        }),
+      ],
     })
     const idResult = suggestNextTasksToolInputSchema.safeParse({
       scope: 'global',
@@ -89,6 +103,7 @@ test.group('suggest_next_tasks tool', () => {
     })
 
     assert.isTrue(validResult.success)
+    assert.isFalse(missingFolderNameResult.success)
     assert.isFalse(idResult.success)
     assert.isFalse(sourceResult.success)
   })
@@ -136,7 +151,15 @@ test.group('suggest_next_tasks tool', () => {
 
     const state = createState(workspace.id)
     const result = await (suggestNextTasksTool as any).execute(
-      { scope: 'global', tasks: [createDraft()] },
+      {
+        scope: 'global',
+        tasks: [
+          createDraft({
+            shouldCreateDedicatedFolder: true,
+            dedicatedFolderName: 'kickoff-review',
+          }),
+        ],
+      },
       createExecContext(state, 'tool-call-global')
     )
 
@@ -153,6 +176,8 @@ test.group('suggest_next_tasks tool', () => {
     assert.deepEqual(persistedState.tasks, item.tasks)
     assert.isNotNull(persistedState.generatedAt)
     assert.isUndefined(persistedState.tasks[0]?.source)
+    assert.equal(persistedState.tasks[0]?.shouldCreateDedicatedFolder, true)
+    assert.equal(persistedState.tasks[0]?.dedicatedFolderName, 'kickoff-review')
   })
 
   test('fails outside onboarding and reuses the same timeline item when retried with the same tool call id', async ({

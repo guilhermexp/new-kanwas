@@ -1,59 +1,18 @@
 import * as readline from 'readline/promises'
 import fs from 'fs/promises'
 import chalk from 'chalk'
-import { readGlobalConfig, tryReadLocalConfig, writeLocalConfig, type GlobalConfig } from '../config.js'
+import { readGlobalConfig, tryReadLocalConfig, writeLocalConfig } from '../config.js'
 import { apiFetch } from '../api.js'
 import { connect } from '../connection.js'
 import { createIgnoreMatcher, flattenFSNode, hashContent, writeFSNodeToDir } from '../fs-utils.js'
 import { workspaceToFilesystem } from 'shared/server'
-import { fetchWorkspace, fetchWorkspaces } from './workspaces.js'
-import { selectPrompt } from './select.js'
+import { resolveWorkspace } from './workspaces.js'
 
 export interface PullOptions {
   id?: string
   name?: string
   /** Skip non-empty directory warning (used when caller already confirmed) */
   skipConfirm?: boolean
-}
-
-async function resolveWorkspace(globalConfig: GlobalConfig, opts: PullOptions): Promise<{ id: string; name: string }> {
-  // By ID — validate it exists and get the name
-  if (opts.id) {
-    return await fetchWorkspace(globalConfig, opts.id)
-  }
-
-  const workspaces = await fetchWorkspaces(globalConfig)
-
-  if (workspaces.length === 0) {
-    console.error(chalk.red('No workspaces found.'))
-    process.exit(1)
-  }
-
-  // By name
-  if (opts.name) {
-    const matches = workspaces.filter((ws) => ws.name === opts.name)
-    if (matches.length === 0) {
-      console.error(chalk.red(`No workspace named "${opts.name}".`))
-      process.exit(1)
-    }
-    if (matches.length > 1) {
-      console.error(chalk.red(`Multiple workspaces named "${opts.name}". Use --id instead:`))
-      for (const ws of matches) {
-        console.error(`  ${ws.id}  ${ws.name}`)
-      }
-      process.exit(1)
-    }
-    return matches[0]
-  }
-
-  // Interactive picker
-  const selected = await selectPrompt(
-    'Select a workspace:',
-    workspaces.map((ws) => ({ label: ws.name, value: ws.id, hint: ws.id }))
-  )
-
-  const workspace = workspaces.find((ws) => ws.id === selected)!
-  return workspace
 }
 
 async function isDirectoryNonEmpty(dir: string): Promise<boolean> {

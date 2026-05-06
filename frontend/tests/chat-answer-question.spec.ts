@@ -89,7 +89,11 @@ describe('useAnswerQuestion', () => {
           lastUpdated: 1,
         },
       },
-      agentMode: 'thinking',
+      agentMode: 'direct',
+      activeInvocationOptions: {
+        mode: 'thinking',
+        follow: true,
+      },
       yoloMode: false,
     }
 
@@ -127,6 +131,10 @@ describe('useAnswerQuestion', () => {
     })
     expect(state.invocationId).toBe('parent-invocation')
     expect(state.activeTaskId).toBe('task-1')
+    expect(state.activeInvocationOptions).toEqual({
+      mode: 'thinking',
+      follow: true,
+    })
     expect(state.timeline).toEqual(answeredTimeline)
     expect(state.streamingItems).toEqual({})
   })

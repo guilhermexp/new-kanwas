@@ -2,6 +2,17 @@ import type { CanvasItem } from 'shared'
 import { findCanvasById, getCanonicalCanvasPath, resolveCanvasPath } from '@/lib/workspaceUtils'
 import { toUrlUuid } from '@/utils/uuid'
 
+export interface CanvasFitRequest {
+  canvasId: string
+  key: string
+}
+
+export interface PendingFollowAfterFit<TFollowRequest> {
+  canvasId: string
+  request: TFollowRequest
+  fitRequestKey?: string | null
+}
+
 export function resolveCanvasAfterStructureChange(
   root: CanvasItem | null,
   activeCanvasId: string | null
@@ -39,6 +50,36 @@ export function shouldShowActiveCanvasInitialFitOverlay({
   }
 
   return fitCanvasRequest?.canvasId === activeCanvasId
+}
+
+export function getFollowRequestAfterHandledFit<TFollowRequest>({
+  pendingFollow,
+  fitRequest,
+  handledFitRequestKey,
+  activeCanvasId,
+}: {
+  pendingFollow: PendingFollowAfterFit<TFollowRequest> | null
+  fitRequest: CanvasFitRequest | null
+  handledFitRequestKey: string
+  activeCanvasId?: string | null
+}): TFollowRequest | null {
+  if (!pendingFollow || !fitRequest) {
+    return null
+  }
+
+  if (
+    fitRequest.key !== handledFitRequestKey ||
+    pendingFollow.fitRequestKey !== handledFitRequestKey ||
+    pendingFollow.canvasId !== fitRequest.canvasId
+  ) {
+    return null
+  }
+
+  if (activeCanvasId && pendingFollow.canvasId !== activeCanvasId) {
+    return null
+  }
+
+  return pendingFollow.request
 }
 
 export function getInitialFitOverlayStyle(isVisible: boolean): {

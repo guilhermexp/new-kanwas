@@ -4,6 +4,7 @@ import {
   OPENAI_DEFAULT_MODEL_TIERS,
   OPENAI_DEFAULT_SUBAGENT_MODEL_TIERS,
   normalizeOpenAIReasoningEffort,
+  normalizeOpenAIServiceTier,
   type OpenAIReasoningEffort,
 } from 'shared/llm-config'
 import type {
@@ -51,6 +52,7 @@ export function createOpenAIProvider(
 ): ProviderConfig {
   const modelOverride = normalizeModelOverride(overrides.model)
   const reasoningEffortOverride = normalizeOpenAIReasoningEffort(overrides.reasoningEffort)
+  const serviceTierOverride = normalizeOpenAIServiceTier(overrides.serviceTier)
   const modelTiers = resolveModelTiers(OPENAI_DEFAULT_MODEL_TIERS, modelOverride)
 
   const customFetch = runtimeOptions.logger ? createOpenAILoggingFetch(runtimeOptions.logger) : undefined
@@ -74,6 +76,7 @@ export function createOpenAIProvider(
         return {
           openai: {
             ...(reasoningEffortOverride ? { reasoningEffort: reasoningEffortOverride } : {}),
+            ...(serviceTierOverride ? { serviceTier: serviceTierOverride } : {}),
             textVerbosity: 'medium',
             ...OPENAI_GENERATION_OPTIONS,
           },
@@ -85,6 +88,7 @@ export function createOpenAIProvider(
         openai: {
           reasoningEffort: resolvedReasoningEffort,
           ...(resolvedReasoningEffort !== 'none' ? { reasoningSummary: OPENAI_REASONING_SUMMARY } : {}),
+          ...(serviceTierOverride ? { serviceTier: serviceTierOverride } : {}),
           textVerbosity: settings.verbosity,
           ...OPENAI_GENERATION_OPTIONS,
         },

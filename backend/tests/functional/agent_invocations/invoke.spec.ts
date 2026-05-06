@@ -105,7 +105,7 @@ test.group('Agent invocations - invoke', () => {
     const invocation = await Invocation.find(invocationId)
     assert.exists(invocation)
     assert.equal(invocation!.query, 'Test query')
-    assert.equal(invocation!.mode, 'thinking')
+    assert.equal(invocation!.mode, 'direct')
 
     // Verify agent execute was called with correct parameters
     const executionInfo = mockAgent.getExecutionInfo()
@@ -116,7 +116,7 @@ test.group('Agent invocations - invoke', () => {
     assert.equal(executionInfo.context!.userName, user.name)
     assert.equal(executionInfo.context!.organizationId, workspace.organizationId)
     assert.equal(executionInfo.context!.aiSessionId, invocationId)
-    assert.equal(executionInfo.context!.agentMode, 'thinking')
+    assert.equal(executionInfo.context!.agentMode, 'direct')
     assert.equal(executionInfo.context!.auditActor, `agent:${user.id}`)
     assert.isString(executionInfo.context!.auditTimestamp)
     assert.isFalse(Number.isNaN(Date.parse(executionInfo.context!.auditTimestamp!)))
@@ -183,10 +183,7 @@ test.group('Agent invocations - invoke', () => {
     }
   })
 
-  test('should default follow-up invocation mode to thinking instead of inheriting parent mode', async ({
-    client,
-    assert,
-  }) => {
+  test('should default follow-up invocation mode to direct when no mode specified', async ({ client, assert }) => {
     const user = await User.create({
       email: 'follow-up-mode@example.com',
       password: 'password123',
@@ -227,9 +224,9 @@ test.group('Agent invocations - invoke', () => {
       const childInvocation = await Invocation.findOrFail(childInvocationId)
 
       assert.equal(parentInvocation.mode, 'direct')
-      assert.equal(childInvocation.mode, 'thinking')
+      assert.equal(childInvocation.mode, 'direct')
       assert.equal(childInvocation.parentInvocationId, parentInvocationId)
-      assert.equal(mockAgent.getExecutionInfo().context!.agentMode, 'thinking')
+      assert.equal(mockAgent.getExecutionInfo().context!.agentMode, 'direct')
     } finally {
       app.container.restore(CanvasAgent)
     }

@@ -248,7 +248,7 @@ describe('AskQuestion context rendering', () => {
     expect(onAnswer).toHaveBeenCalledWith('ask-question-1', { q1: ['__other__:submit from check'] })
   })
 
-  it('keeps plain Enter inside the Other textarea instead of submitting', async () => {
+  it('submits single-line Other text with plain Enter', async () => {
     const onAnswer = vi.fn()
 
     await act(async () => {
@@ -268,10 +268,76 @@ describe('AskQuestion context rendering', () => {
 
     const textarea = container.querySelector('textarea') as HTMLTextAreaElement
     await act(async () => {
+      setTextareaValue(textarea, 'submit from enter')
+    })
+
+    await act(async () => {
       textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
     })
 
+    expect(onAnswer).toHaveBeenCalledWith('ask-question-1', { q1: ['__other__:submit from enter'] })
+  })
+
+  it('keeps Shift+Enter inside the Other textarea instead of submitting', async () => {
+    const onAnswer = vi.fn()
+
+    await act(async () => {
+      root.render(
+        React.createElement(AskQuestion, {
+          item: createPendingQuestionItem(),
+          isPending: false,
+          onAnswer,
+        })
+      )
+    })
+
+    await act(async () => {
+      clickOtherOption(container)
+      await Promise.resolve()
+    })
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement
+    await act(async () => {
+      setTextareaValue(textarea, 'line 1')
+    })
+
+    await act(async () => {
+      textarea.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true, cancelable: true })
+      )
+    })
+
     expect(onAnswer).not.toHaveBeenCalled()
+  })
+
+  it('submits multiline Other text with plain Enter', async () => {
+    const onAnswer = vi.fn()
+
+    await act(async () => {
+      root.render(
+        React.createElement(AskQuestion, {
+          item: createPendingQuestionItem(),
+          isPending: false,
+          onAnswer,
+        })
+      )
+    })
+
+    await act(async () => {
+      clickOtherOption(container)
+      await Promise.resolve()
+    })
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement
+    await act(async () => {
+      setTextareaValue(textarea, 'line 1\nline 2')
+    })
+
+    await act(async () => {
+      textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+    })
+
+    expect(onAnswer).toHaveBeenCalledWith('ask-question-1', { q1: ['__other__:line 1\nline 2'] })
   })
 
   it('uses Cmd+Enter in the Other textarea to submit the current answer', async () => {

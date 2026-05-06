@@ -93,6 +93,16 @@ export const invokeValidator = vine.compile(
   })
 )
 
+export const onboardingStartValidator = vine.compile(
+  vine.object({
+    canvas_id: vine.string().nullable().optional(),
+    mode: vine.enum([...AGENT_MODES]).optional(),
+    workspace_tree: vine.string().optional(),
+    canvas_path: vine.string().nullable().optional(),
+    active_canvas_context: vine.string().nullable().optional(),
+  })
+)
+
 const cancelOperation = {
   type: vine.literal('cancel_operation'),
   reason: vine.string().minLength(1).optional(),

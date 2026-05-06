@@ -4,13 +4,13 @@ import { createAnthropicProvider, createOpenAIProvider, createProviderFromConfig
 const FAKE_OPENAI_KEY = 'test-openai-key'
 
 test.group('Provider model tiers and overrides', () => {
-  test('OpenAI defaults to generic GPT-5.4 tiers', ({ assert }) => {
+  test('OpenAI defaults to GPT-5.5 tiers', ({ assert }) => {
     const provider = createOpenAIProvider(FAKE_OPENAI_KEY)
 
     assert.deepEqual(provider.modelTiers, {
-      small: 'gpt-5.4-mini',
-      medium: 'gpt-5.4',
-      big: 'gpt-5.4',
+      small: 'gpt-5.5',
+      medium: 'gpt-5.5',
+      big: 'gpt-5.5',
     })
     assert.deepEqual(provider.subagentModelTiers, {
       explore: 'small',
@@ -22,6 +22,7 @@ test.group('Provider model tiers and overrides', () => {
     const provider = createOpenAIProvider(FAKE_OPENAI_KEY, {
       model: 'gpt-5.4-mini',
       reasoningEffort: 'low',
+      serviceTier: 'priority',
     })
     const modelId = provider.modelTiers.big
 
@@ -32,7 +33,9 @@ test.group('Provider model tiers and overrides', () => {
     })
     assert.equal((provider.generationOptions({ modelId, flowHint: 'execute' }) as any).openai.reasoningEffort, 'low')
     assert.equal((provider.generationOptions({ modelId, flowHint: 'execute' }) as any).openai.reasoningSummary, 'auto')
+    assert.equal((provider.generationOptions({ modelId, flowHint: 'execute' }) as any).openai.serviceTier, 'priority')
     assert.equal((provider.generationOptions({ modelId, flowHint: 'utility' }) as any).openai.reasoningEffort, 'low')
+    assert.equal((provider.generationOptions({ modelId, flowHint: 'utility' }) as any).openai.serviceTier, 'priority')
   })
 
   test('OpenAI disables reasoning summaries when reasoning effort override is none', ({ assert }) => {
@@ -103,6 +106,7 @@ test.group('Provider model tiers and overrides', () => {
         provider: 'openai',
         model: ' gpt-5.4 ',
         reasoningEffort: ' low ',
+        serviceTier: ' priority ',
       }
     )
 
@@ -112,6 +116,10 @@ test.group('Provider model tiers and overrides', () => {
       (provider.generationOptions({ modelId: provider.modelTiers.big, flowHint: 'execute' }) as any).openai
         .reasoningEffort,
       'low'
+    )
+    assert.equal(
+      (provider.generationOptions({ modelId: provider.modelTiers.big, flowHint: 'execute' }) as any).openai.serviceTier,
+      'priority'
     )
   })
 })

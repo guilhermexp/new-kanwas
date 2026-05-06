@@ -38,7 +38,7 @@ export default memo(function CollapsedCardNode({ id, selected, data }: Collapsed
         containerStyle={{ width: COLLAPSED_NODE_LAYOUT.WIDTH, maxWidth: COLLAPSED_NODE_LAYOUT.WIDTH }}
       />
       <div
-        className={`bg-editor border border-outline box-border relative cursor-pointer ${
+        className={`bg-white dark:bg-editor border node-card-blocknote box-border relative cursor-pointer ${
           selected ? 'node-card-selected' : ''
         }`}
         style={{

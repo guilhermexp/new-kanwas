@@ -98,6 +98,8 @@ export interface SuggestedTask {
   description: string
   prompt: string
   source?: string
+  shouldCreateDedicatedFolder?: boolean
+  dedicatedFolderName?: string
 }
 
 export interface BaseToolItem {

@@ -17,7 +17,7 @@ import {
   collapseNode,
   COLLAPSIBLE_TYPES,
 } from './group'
-import { useFitNodeInView, useFocusNodeAt100 } from './hooks'
+import { useFitNodeInView, useFollowNodeInView, useFollowSectionInView, useFocusNodeAt100 } from './hooks'
 import { useNavigateNodes } from './useNavigateNodes'
 import { useCanvasLayout } from './useCanvasLayout'
 import { COLLAPSED_NODE_LAYOUT } from 'shared/constants'
@@ -37,15 +37,18 @@ import { CanvasFlowControls } from './CanvasFlowControls'
 import { CanvasFlowOverlays } from './CanvasFlowOverlays'
 import { useInitialCanvasFitRequest } from './useInitialCanvasFitRequest'
 import { useCreateSection, useSectionCollisionResolution, useSectionDrag, useSectionMutations } from './section'
+import type { AgentCanvasFollowRequest } from '@/components/chat/agentFileFollow'
 
 interface CanvasFlowProps {
   mutableCanvas: CanvasItem
   selectedNodeIds: string[]
   selectedNodeId?: string | null
   focusedNodeId?: string | null
+  followRequest?: AgentCanvasFollowRequest | null
   fitSelectedNode?: boolean
   fitCanvasRequestKey?: string | null
   onNodeFocused?: () => void
+  onNodeFollowed?: () => void
   onSelectionChange?: (nodeIds: string[]) => void
   onCanvasSelect?: (canvasId: string) => void
   onWorkspaceLinkNavigate?: (href: string) => boolean
@@ -57,9 +60,11 @@ export function CanvasFlow({
   selectedNodeIds,
   selectedNodeId,
   focusedNodeId,
+  followRequest,
   fitSelectedNode = true,
   fitCanvasRequestKey,
   onNodeFocused,
+  onNodeFollowed,
   onSelectionChange,
   onCanvasSelect,
   onWorkspaceLinkNavigate,
@@ -79,6 +84,8 @@ export function CanvasFlow({
     acquireCursorPresenceSuppression,
   } = useWorkspace()
   const fitNodeInView = useFitNodeInView()
+  const followNodeInView = useFollowNodeInView()
+  const followSectionInView = useFollowSectionInView()
   const focusNodeAt100 = useFocusNodeAt100()
   const setSelectedNodeIds = useCallback(
     (nodeIds: string[]) => {
@@ -87,7 +94,7 @@ export function CanvasFlow({
     [onSelectionChange]
   )
   const { navigateNodes } = useNavigateNodes(canvas, selectedNodeIds, setSelectedNodeIds)
-  const { screenToFlowPosition, flowToScreenPosition, zoomTo, setViewport, getViewport, getNode } = useReactFlow()
+  const { screenToFlowPosition, zoomTo, setViewport, getViewport, getNode } = useReactFlow()
   const {
     focusMode,
     focusedNodeId: focusModeNodeId,
@@ -240,7 +247,7 @@ export function CanvasFlow({
     isCursorPresenceSuppressed,
     acquireCursorPresenceSuppression,
     screenToFlowPosition,
-    flowToScreenPosition,
+    getViewport,
     setViewport,
     canvasSurfaceRef,
   })
@@ -254,6 +261,7 @@ export function CanvasFlow({
 
   const { deselectNode, selectOnlyNode, handleSelectionChange, handlePaneClick, handleNodeClick } = useCanvasSelection({
     selectedNodeIds,
+    programmaticSelectedNodeId: selectedNodeId,
     setSelectedNodeIds,
     setIsMultiDragActive,
     clearContextMenu: () => setContextMenu(null),
@@ -462,7 +470,9 @@ export function CanvasFlow({
     canvas,
     workspaceId,
     selectedNodeId,
+    selectedNodeIds,
     focusedNodeId,
+    followRequest,
     fitSelectedNode,
     suppressSelectedNodeFallbackFit: Boolean(fitCanvasRequestKey),
     focusMode,
@@ -472,9 +482,12 @@ export function CanvasFlow({
     getViewport,
     setViewport,
     fitNodeInView,
+    followNodeInView,
+    followSectionInView,
     focusNodeAt100,
     setSelectedNodeIds,
     onNodeFocused,
+    onNodeFollowed,
   })
 
   const { onNodesChange, onEdgesChange } = useCanvasChangeHandlers({

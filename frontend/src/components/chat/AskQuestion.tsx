@@ -624,14 +624,14 @@ export function AskQuestion({ item, isPending, onAnswer, streaming, streamingPha
                   onMouseEnter={() => setHighlightedOptionIndex(oIndex)}
                   disabled={isPending}
                   className={`
-                  w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg border text-left transition-all
+                  w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg border text-left transition-all cursor-pointer
                   disabled:opacity-50 disabled:cursor-not-allowed
                   ${
                     isSelected
                       ? 'bg-chat-background border-foreground/50 ring-1 ring-foreground/20'
                       : isHighlighted
-                        ? 'bg-block-hover border-foreground/30 ring-1 ring-foreground/10'
-                        : 'border-transparent hover:bg-block-hover hover:border-foreground/20'
+                        ? 'bg-question-option-hover-bg border-question-option-hover-border ring-1 ring-foreground/10'
+                        : 'border-transparent hover:bg-question-option-hover-bg hover:border-question-option-hover-border'
                   }
                 `}
                 >
@@ -689,8 +689,8 @@ export function AskQuestion({ item, isPending, onAnswer, streaming, streamingPha
                 isOtherSelected
                   ? 'bg-chat-background border-foreground/50 ring-1 ring-foreground/20'
                   : isOtherHighlighted
-                    ? 'bg-block-hover border-foreground/30 ring-1 ring-foreground/10'
-                    : 'border-transparent hover:bg-block-hover hover:border-foreground/20'
+                    ? 'bg-question-option-hover-bg border-question-option-hover-border ring-1 ring-foreground/10'
+                    : 'border-transparent hover:bg-question-option-hover-bg hover:border-question-option-hover-border'
               }
             `}
             >
@@ -739,7 +739,7 @@ export function AskQuestion({ item, isPending, onAnswer, streaming, streamingPha
                           }}
                           placeholder="Type your answer..."
                           disabled={isPending}
-                          rows={1}
+                          rows={2}
                           className="w-full min-h-[38px] resize-none overflow-hidden px-2.5 py-2 text-sm leading-5 bg-chat-background border border-outline rounded-md text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                         />
 

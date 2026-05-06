@@ -5,6 +5,7 @@ import { useSnapshot } from 'valtio'
 import type { AgentMode } from 'backend/agent'
 import { useChat } from '@/providers/chat'
 import { useSetAgentMode } from '@/providers/chat/hooks'
+import { normalizeChatAgentMode } from '@/providers/chat/invocationOptions'
 
 type ModeOption = {
   value: AgentMode
@@ -19,9 +20,9 @@ type ModeOption = {
 const MODE_OPTIONS: ModeOption[] = [
   {
     value: 'thinking',
-    label: 'Thinking',
+    label: 'Get my brain going',
     icon: 'fa-brain',
-    description: 'Collaborative mode for strategy, exploration, tradeoffs, and shaping unclear work.',
+    description: 'Asking a lot of questions to get your insights.',
     color: '#d69600',
     background: 'rgba(232, 163, 0, 0.14)',
     border: 'rgba(232, 163, 0, 0.32)',
@@ -30,7 +31,7 @@ const MODE_OPTIONS: ModeOption[] = [
     value: 'direct',
     label: 'Direct',
     icon: 'fa-bolt',
-    description: 'Execution mode for clear requests, fast answers, edits, summaries, and bounded tasks.',
+    description: 'Direct execution of tasks, fast output on canvas.',
     color: '#0b6e99',
     background: 'rgba(11, 110, 153, 0.13)',
     border: 'rgba(11, 110, 153, 0.3)',
@@ -52,7 +53,7 @@ export function AgentModeSelector({
   const { state } = useChat()
   const snapshot = useSnapshot(state)
   const setAgentMode = useSetAgentMode()
-  const activeMode = snapshot.agentMode === 'direct' ? 'direct' : 'thinking'
+  const activeMode = normalizeChatAgentMode(snapshot.activeInvocationOptions?.mode ?? snapshot.agentMode)
   const activeOption = MODE_OPTIONS.find((option) => option.value === activeMode) ?? MODE_OPTIONS[0]
   const [directModeTipVisible, setDirectModeTipVisible] = useState(false)
   const onDismissDirectModeTipRef = useRef(onDismissDirectModeTip)
@@ -134,14 +135,14 @@ export function AgentModeSelector({
             type="button"
             aria-label="Select agent mode"
             onClick={dismissDirectModeTip}
-            className={`inline-flex h-[36px] min-w-[112px] items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all duration-200 hover:scale-[1.03] active:scale-95 cursor-pointer ${directModeTipActive ? 'animate-direct-mode-tip' : ''}`}
+            className={`inline-flex h-[28px] min-w-0 items-center justify-center gap-1 rounded-full border px-2 text-[11px] font-semibold transition-all duration-200 hover:scale-[1.03] active:scale-95 cursor-pointer ${directModeTipActive ? 'animate-direct-mode-tip' : ''}`}
             style={{
               color: activeOption.color,
               background: activeOption.background,
               borderColor: activeOption.border,
             }}
           >
-            <i className={`fa-solid ${activeOption.icon} text-[12px]`} aria-hidden="true" />
+            <i className={`fa-solid ${activeOption.icon} text-[10px]`} aria-hidden="true" />
             <span>{activeOption.label}</span>
             <i className="fa-solid fa-chevron-down text-[8px] opacity-70" aria-hidden="true" />
           </button>
@@ -152,7 +153,7 @@ export function AgentModeSelector({
             side="top"
             align="start"
             sideOffset={8}
-            className="z-[60] min-w-[190px] rounded-lg border border-chat-pill-border bg-canvas p-1 shadow-lg"
+            className="z-[60] min-w-[160px] rounded-lg border border-chat-pill-border bg-canvas p-1 shadow-lg"
           >
             <Tooltip.Provider delayDuration={250} skipDelayDuration={0}>
               {MODE_OPTIONS.map((option) => {
@@ -162,21 +163,21 @@ export function AgentModeSelector({
                   <Tooltip.Root key={option.value}>
                     <Tooltip.Trigger asChild>
                       <DropdownMenu.Item
-                        className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm outline-none hover:bg-block-hover data-[highlighted]:bg-block-hover"
+                        className="flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-xs outline-none hover:bg-block-hover data-[highlighted]:bg-block-hover"
                         onSelect={() => handleSelectMode(option.value)}
                       >
                         <span
-                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
                           style={{
                             color: option.color,
                             background: option.background,
                             border: `1px solid ${option.border}`,
                           }}
                         >
-                          <i className={`fa-solid ${option.icon} text-[11px]`} aria-hidden="true" />
+                          <i className={`fa-solid ${option.icon} text-[9px]`} aria-hidden="true" />
                         </span>
                         <span className="min-w-0 flex-1 font-medium text-foreground">{option.label}</span>
-                        {selected && <i className="fa-solid fa-check text-[11px] text-foreground-muted" />}
+                        {selected && <i className="fa-solid fa-check text-[9px] text-foreground-muted" />}
                       </DropdownMenu.Item>
                     </Tooltip.Trigger>
                     <Tooltip.Portal>

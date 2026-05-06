@@ -41,13 +41,13 @@ function syncAwarenessState(target: Awareness, source: Awareness) {
 
 function createReactFlowHarness(
   options: {
-    flowToScreenPosition?: ({ x, y }: { x: number; y: number }) => { x: number; y: number }
     screenToFlowPosition?: ({ x, y }: { x: number; y: number }) => { x: number; y: number }
+    getViewport?: () => { x: number; y: number; zoom: number }
   } = {}
 ): ReactFlowInstance {
   return {
-    flowToScreenPosition: options.flowToScreenPosition ?? ((position) => position),
     screenToFlowPosition: options.screenToFlowPosition ?? ((position) => position),
+    getViewport: options.getViewport ?? (() => ({ x: 0, y: 0, zoom: 1 })),
   } as ReactFlowInstance
 }
 
@@ -167,11 +167,7 @@ describe('CursorManager', () => {
     cleanups.push(() => manager.destroy())
 
     const container = createCanvasContainer()
-    manager.setReactFlowInstance(
-      createReactFlowHarness({
-        flowToScreenPosition: ({ x, y }) => ({ x: x + 100, y: y + 200 }),
-      })
-    )
+    manager.setReactFlowInstance(createReactFlowHarness())
     manager.attach(container, 'canvas-a')
 
     const now = Date.now()
@@ -193,11 +189,12 @@ describe('CursorManager', () => {
     const cursor = container.querySelector('.remote-cursor') as HTMLDivElement | null
     expect(cursor).not.toBeNull()
     expect(cursor?.textContent).toContain('Remote User')
-    expect(cursor?.style.left).toBe('60px')
-    expect(cursor?.style.top).toBe('160px')
+    // Cursors are positioned in canvas (flow) coordinates directly
+    expect(cursor?.style.left).toBe('10px')
+    expect(cursor?.style.top).toBe('20px')
   })
 
-  it('reprojects visible cursors when the viewport changes', () => {
+  it('counter-scales cursors when zoom changes', async () => {
     const providerHarness = createProviderHarness()
     const remoteHarness = createRemoteHarness()
     cleanups.push(() => remoteHarness.cleanup())
@@ -206,35 +203,35 @@ describe('CursorManager', () => {
     const manager = createCursorManager(providerHarness.provider)
     cleanups.push(() => manager.destroy())
 
-    let screenOffsetX = 100
-    let screenOffsetY = 200
+    let currentZoom = 1
     const container = createCanvasContainer()
+
+    // Provide a .react-flow__viewport element so the MutationObserver is wired up
+    const viewport = document.createElement('div')
+    viewport.className = 'react-flow__viewport'
+    container.appendChild(viewport)
 
     manager.setReactFlowInstance(
       createReactFlowHarness({
-        flowToScreenPosition: ({ x, y }) => ({ x: x + screenOffsetX, y: y + screenOffsetY }),
+        getViewport: () => ({ x: 0, y: 0, zoom: currentZoom }),
       })
     )
     manager.attach(container, 'canvas-a')
 
-    const now = Date.now()
-
     remoteHarness.awareness.setLocalState({
-      appCursor: { canvasId: 'canvas-a', x: 10, y: 20, timestamp: now },
+      appCursor: { canvasId: 'canvas-a', x: 10, y: 20, timestamp: Date.now() },
       appUser: { id: 'remote-user', name: 'Remote User', color: '#ff00aa' },
     })
     syncAwarenessState(providerHarness.awareness, remoteHarness.awareness)
 
     const cursor = container.querySelector('.remote-cursor') as HTMLDivElement | null
-    expect(cursor?.style.left).toBe('60px')
-    expect(cursor?.style.top).toBe('160px')
+    expect(cursor?.style.transform).toBe('scale(1)')
 
-    screenOffsetX = 180
-    screenOffsetY = 260
-    manager.refresh()
+    currentZoom = 2
+    viewport.style.transform = 'translate(0px, 0px) scale(2)'
+    await Promise.resolve() // flush MutationObserver microtask
 
-    expect(cursor?.style.left).toBe('140px')
-    expect(cursor?.style.top).toBe('220px')
+    expect(cursor?.style.transform).toBe('scale(0.5)')
   })
 
   it('updates remote cursor labels when appUser changes', () => {

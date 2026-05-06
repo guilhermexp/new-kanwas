@@ -1,6 +1,11 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import mime from 'mime'
-import { invokeValidator, CommandSchema, answerQuestionValidator } from '#validators/agent_invocation'
+import {
+  invokeValidator,
+  onboardingStartValidator,
+  CommandSchema,
+  answerQuestionValidator,
+} from '#validators/agent_invocation'
 import Invocation from '#models/invocation'
 import type { UploadedFile } from '#models/invocation'
 import Workspace from '#models/workspace'
@@ -25,7 +30,7 @@ import UserConfigService from '#services/user_config_service'
 import { moveMultipartFileToDisk } from '#services/multipart_file'
 import type { AgentSocketMessage } from '#types/socketio'
 import type { SerializedState } from '#agent/index'
-import { DEFAULT_AGENT_MODE, normalizeAgentMode } from '#agent/modes'
+import { normalizeAgentMode } from '#agent/modes'
 import Task from '#models/task'
 import { formatAnswersForLLM } from '#agent/tools/ask_question'
 import type { AskQuestionItem, ConversationItem, Question } from '#agent/types'
@@ -338,13 +343,15 @@ export default class AgentInvocationsController {
     return task.status === 'initiated' || task.status === 'processing' || task.status === 'waiting'
   }
 
-  async startOnboarding({ params, auth, response, organizationId }: HttpContext) {
+  async startOnboarding({ params, request, auth, response, organizationId }: HttpContext) {
     const user = auth.getUserOrFail()
     const workspaceId = params.id
 
     if (!organizationId) {
       return response.badRequest({ error: 'Workspace context is required' })
     }
+
+    const data = await request.validateUsing(onboardingStartValidator)
 
     const currentWorkspace = await Workspace.query()
       .select('id', 'onboarding_status')
@@ -362,12 +369,13 @@ export default class AgentInvocationsController {
     const userConfig = await this.userConfigService.getConfig(user.id)
     const serializedProvider = userConfig.llmProvider ?? DEFAULT_LLM_PROVIDER
     const invocationId = randomUUID()
+    const agentMode = normalizeAgentMode(data.mode)
 
     if (gateResult.blocked) {
       const blockedInvocation = new Invocation().fill({
         id: invocationId,
         workspaceId,
-        canvasId: null,
+        canvasId: data.canvas_id || null,
         query: WORKSPACE_ONBOARDING_PROMPT,
         agentState: this.buildBlockedInvocationState({
           invocationId,
@@ -379,10 +387,13 @@ export default class AgentInvocationsController {
         parentInvocationId: null,
         files: null,
         yoloMode: false,
-        mode: DEFAULT_AGENT_MODE,
+        mode: agentMode,
         userId: user.id,
         source: 'onboarding',
       })
+      blockedInvocation.workspaceTree = data.workspace_tree || null
+      blockedInvocation.canvasPath = data.canvas_path ?? null
+      blockedInvocation.activeCanvasContext = data.active_canvas_context ?? null
 
       const persistResult = await this.persistInvocationAndTaskOrRespond(response, {
         invocation: blockedInvocation,
@@ -427,16 +438,19 @@ export default class AgentInvocationsController {
     const invocation = new Invocation().fill({
       id: invocationId,
       workspaceId,
-      canvasId: null,
+      canvasId: data.canvas_id || null,
       query: WORKSPACE_ONBOARDING_PROMPT,
       agentState: null,
       parentInvocationId: null,
       files: null,
       yoloMode: false,
-      mode: DEFAULT_AGENT_MODE,
+      mode: agentMode,
       userId: user.id,
       source: 'onboarding',
     })
+    invocation.workspaceTree = data.workspace_tree || null
+    invocation.canvasPath = data.canvas_path ?? null
+    invocation.activeCanvasContext = data.active_canvas_context ?? null
 
     let taskId: string | null = null
     let taskCreated = false

@@ -3,19 +3,23 @@ import {
   DEFAULT_LLM_PROVIDER,
   normalizeLlmModel,
   normalizeLlmProvider,
+  normalizeOpenAIServiceTier,
   normalizeReasoningEffortForProvider,
+  normalizeServiceTierForProvider,
   type LlmProviderName,
   type OpenAIReasoningEffort,
+  type OpenAIServiceTier,
 } from 'shared/llm-config'
 
 const SINGLETON_ID = 'global'
-const LLM_DEFAULT_CONFIG_KEYS = ['llmProvider', 'llmModel'] as const
+const LLM_DEFAULT_CONFIG_KEYS = ['llmProvider', 'llmModel', 'llmServiceTier'] as const
 
 type LlmDefaultConfigKey = (typeof LLM_DEFAULT_CONFIG_KEYS)[number]
 
 export interface LlmDefaultConfigFields {
   llmProvider?: LlmProviderName | null
   llmModel?: string | null
+  llmServiceTier?: OpenAIServiceTier | null
 }
 
 export interface LlmConfigFields extends LlmDefaultConfigFields {
@@ -44,6 +48,7 @@ export default class LlmDefaultConfigService {
         id: SINGLETON_ID,
         llmProvider: updates.llmProvider ?? null,
         llmModel: updates.llmModel ?? null,
+        llmServiceTier: updates.llmServiceTier ?? null,
       })
     } else {
       if (updates.llmProvider !== undefined) {
@@ -52,6 +57,10 @@ export default class LlmDefaultConfigService {
 
       if (updates.llmModel !== undefined) {
         row.llmModel = updates.llmModel
+      }
+
+      if (updates.llmServiceTier !== undefined) {
+        row.llmServiceTier = updates.llmServiceTier
       }
 
       await row.save()
@@ -83,6 +92,18 @@ export function normalizeLlmDefaultConfigUpdates(
     updates.llmModel = null
   }
 
+  if (Object.prototype.hasOwnProperty.call(input, 'llmServiceTier')) {
+    updates.llmServiceTier = normalizeNullableServiceTier(
+      input.llmServiceTier,
+      resolveEffectiveDefaultProvider(updates, currentConfig)
+    )
+  } else if (
+    didProviderChange(updates, currentConfig) &&
+    resolveEffectiveDefaultProvider(updates, currentConfig) !== 'openai'
+  ) {
+    updates.llmServiceTier = null
+  }
+
   return updates
 }
 
@@ -99,11 +120,15 @@ export function resolveEffectiveLlmConfig(
   const defaultModel = normalizeLlmModel(defaultConfig.llmModel)
   const defaultModelProvider = defaultModel ? (defaultProvider ?? DEFAULT_LLM_PROVIDER) : undefined
   const inheritedModel = defaultModel && effectiveProviderForModel === defaultModelProvider ? defaultModel : undefined
+  const serviceTier =
+    normalizeServiceTierForProvider(userConfig.llmServiceTier, effectiveProvider) ??
+    normalizeServiceTierForProvider(defaultConfig.llmServiceTier, effectiveProvider)
 
   return {
     llmProvider: effectiveProvider,
     llmModel: userModel ?? inheritedModel,
     reasoningEffort: normalizeReasoningEffortForProvider(userConfig.reasoningEffort, effectiveProvider),
+    llmServiceTier: serviceTier,
   }
 }
 
@@ -133,12 +158,40 @@ function normalizeNullableModel(value: unknown): string | null {
   return model
 }
 
+function normalizeNullableServiceTier(value: unknown, provider: LlmProviderName): OpenAIServiceTier | null {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+
+  if (provider !== 'openai') {
+    throw new InvalidLlmDefaultConfigError('Service tier defaults are only supported for OpenAI.')
+  }
+
+  const serviceTier = normalizeOpenAIServiceTier(value)
+  if (!serviceTier) {
+    throw new InvalidLlmDefaultConfigError('Invalid OpenAI service tier default.')
+  }
+
+  return serviceTier
+}
+
 function didProviderChange(updates: LlmDefaultConfigFields, currentConfig: LlmDefaultConfigFields): boolean {
   if (updates.llmProvider === undefined) {
     return false
   }
 
   return updates.llmProvider !== (normalizeLlmProvider(currentConfig.llmProvider) ?? null)
+}
+
+function resolveEffectiveDefaultProvider(
+  updates: LlmDefaultConfigFields,
+  currentConfig: LlmDefaultConfigFields
+): LlmProviderName {
+  if (updates.llmProvider !== undefined) {
+    return updates.llmProvider ?? DEFAULT_LLM_PROVIDER
+  }
+
+  return normalizeLlmProvider(currentConfig.llmProvider) ?? DEFAULT_LLM_PROVIDER
 }
 
 function hasStoredConfigValues(config: LlmDefaultConfigFields): boolean {
@@ -154,6 +207,10 @@ function serializeConfig(row: LlmDefaultConfig): LlmDefaultConfigFields {
 
   if (row.llmModel) {
     config.llmModel = row.llmModel
+  }
+
+  if (row.llmServiceTier) {
+    config.llmServiceTier = row.llmServiceTier
   }
 
   return config
