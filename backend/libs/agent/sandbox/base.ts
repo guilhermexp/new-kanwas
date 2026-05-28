@@ -30,6 +30,10 @@ export abstract class BaseSandbox {
   abstract getMetricsAndCost(): Promise<SandboxMetrics | null>
   abstract getSandboxId(): string | null
 
+  getHostWorkspacePath(): string | null {
+    return null
+  }
+
   isPaused(): boolean {
     return false
   }

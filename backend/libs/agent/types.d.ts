@@ -4,6 +4,7 @@ import type { State } from './state.js'
 import type { EventStream } from './events.js'
 import type { ProviderConfig } from './providers/types.js'
 import type { AgentMode } from './modes.js'
+import type { ExecutionEngine } from 'shared/execution-config'
 
 // ============================================================================
 // Configuration Types
@@ -11,6 +12,8 @@ import type { AgentMode } from './modes.js'
 export interface AgentConfig {
   provider: ProviderConfig
   model: string
+  /** Execution engine to use for the agent loop. Defaults to 'vercel-ai'. */
+  executionEngine?: ExecutionEngine
   workspaceDocumentService: import('#services/workspace_document_service').default
   webSearchService: import('#services/web_search_service').default
   sandboxRegistry: import('#services/sandbox_registry').SandboxRegistry

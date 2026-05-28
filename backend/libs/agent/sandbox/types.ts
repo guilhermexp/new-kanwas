@@ -1,5 +1,7 @@
+export type SandboxProvider = 'host' | 'docker' | 'e2b'
+
 export interface SandboxConfig {
-  provider: 'docker' | 'e2b'
+  provider: SandboxProvider
   yjsServerHost?: string
   yjsServerProtocol?: 'ws' | 'wss'
   /** Backend API URL for file operations (images, etc.) */
@@ -43,7 +45,7 @@ export interface SandboxInitOptions {
   userId: string
   /** Correlation ID for end-to-end tracing */
   correlationId: string
-  /** Existing sandbox ID to connect to (E2B only) */
+  /** Existing sandbox ID to connect to */
   sandboxId?: string
   /**
    * Optional callback invoked as soon as a sandbox ID is available (before ready).

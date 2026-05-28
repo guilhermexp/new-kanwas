@@ -65,6 +65,10 @@
     "./llm-config": {
       "types": "./dist/llm-config.d.ts",
       "default": "./dist/llm-config.js"
+    },
+    "./execution-config": {
+      "types": "./dist/execution-config.d.ts",
+      "default": "./dist/execution-config.js"
     }
   },
   "scripts": {

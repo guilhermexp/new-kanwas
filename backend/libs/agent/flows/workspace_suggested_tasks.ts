@@ -1,4 +1,4 @@
-import { hasToolCall, stepCountIs } from 'ai'
+import { hasToolCall, stepCountIs, type ToolSet } from 'ai'
 import { z } from 'zod'
 import { createNativeTools } from '../tools/index.js'
 import { WORKSPACE_SUGGESTED_TASK_TERMINAL_TOOL_NAME, type ProductAgentFlowDefinition } from './shared.js'
@@ -17,15 +17,16 @@ export function createWorkspaceSuggestedTaskFlowDefinition(input: {
     terminalToolName: WORKSPACE_SUGGESTED_TASK_TERMINAL_TOOL_NAME,
     enableComposio: false,
     providerOptions: input.provider.generationOptions({ modelId: input.model, flowHint: 'generate' }),
-    buildTools: (context) => ({
-      ...createNativeTools(context),
-      [WORKSPACE_SUGGESTED_TASK_TERMINAL_TOOL_NAME]: {
-        description:
-          'Return the final suggested tasks as structured JSON only after you have explored the workspace thoroughly.',
-        inputSchema: input.responseSchema,
-        execute: async (payload: unknown) => payload,
-      },
-    }),
+    buildTools: (context) =>
+      ({
+        ...createNativeTools(context),
+        [WORKSPACE_SUGGESTED_TASK_TERMINAL_TOOL_NAME]: {
+          description:
+            'Return the final suggested tasks as structured JSON only after you have explored the workspace thoroughly.',
+          inputSchema: input.responseSchema,
+          execute: async (payload: unknown) => payload,
+        },
+      }) as ToolSet,
     stopWhenFactory: ({ maxIterations }) => [
       stepCountIs(maxIterations),
       hasToolCall(WORKSPACE_SUGGESTED_TASK_TERMINAL_TOOL_NAME),

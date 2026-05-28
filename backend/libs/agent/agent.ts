@@ -29,6 +29,9 @@ import { normalizeAgentMode } from './modes.js'
 import SkillService from '#services/skill_service'
 import UserConfigService from '#services/user_config_service'
 import type PostHogService from '#services/posthog_service'
+import { type ExecutionEngine, DEFAULT_EXECUTION_ENGINE } from 'shared/execution-config'
+import { CodexEngine } from './bridge/codex_engine.js'
+import { ClaudeSDKEngine } from './bridge/claude_sdk_engine.js'
 
 export interface AgentExecuteOptions {
   allowTerminalToolCompletion?: boolean
@@ -46,17 +49,21 @@ export class CanvasAgent {
   protected eventStream: EventStream
   private state: State
   private provider: ProviderConfig
+  private executionEngine: ExecutionEngine
   private workspaceDocumentService: AgentConfig['workspaceDocumentService']
   private webSearchService: AgentConfig['webSearchService']
   private sandboxRegistry: AgentConfig['sandboxRegistry']
   private posthogService: PostHogService
   private sandboxManager: SandboxManager
+  private codexEngine: CodexEngine | null = null
+  private claudeSDKEngine: ClaudeSDKEngine | null = null
   private replayTraceProperties: ReplayTraceProperties | undefined
 
   constructor(config: AgentConfig) {
     this.eventStream = new EventStream()
     this.state = new State(this.eventStream)
     this.provider = config.provider
+    this.executionEngine = config.executionEngine ?? DEFAULT_EXECUTION_ENGINE
     this.llm = new LLM({ provider: config.provider, model: config.model, posthogService: config.posthogService })
     this.state.setProvider(config.provider.name)
     this.workspaceDocumentService = config.workspaceDocumentService
@@ -452,6 +459,18 @@ export class CanvasAgent {
 
       // Clean up LLM resources (e.g., Composio sessions)
       await this.llm.closeSession()
+
+      // Clean up Codex engine if used
+      if (this.codexEngine) {
+        await this.codexEngine.shutdown()
+        this.codexEngine = null
+      }
+
+      // Clean up Claude SDK engine if used
+      if (this.claudeSDKEngine) {
+        await this.claudeSDKEngine.shutdown()
+        this.claudeSDKEngine = null
+      }
     }
   }
 
@@ -506,6 +525,11 @@ export class CanvasAgent {
 
   /**
    * Run the main product-agent ToolLoop using the resolved invocation flow.
+   *
+   * Dispatches to the configured execution engine:
+   * - `vercel-ai`: Vercel AI SDK (default)
+   * - `claude-sdk`: Anthropic Messages API direct (with tool loop)
+   * - `codex`: Codex CLI subprocess
    */
   private async generateActionAndObservation(
     flow: ResolvedProductAgentFlow,
@@ -514,6 +538,17 @@ export class CanvasAgent {
     traceIdentity: TraceIdentity,
     traceProperties?: ReplayTraceProperties
   ): Promise<NativeGenerateResult> {
+    switch (this.executionEngine) {
+      case 'vercel-ai':
+        break // fall through to existing implementation
+      case 'claude-sdk':
+        return this.generateViaClaudeSDK(flow, abortSignal, traceContext, traceIdentity)
+      case 'codex':
+        return this.generateViaCodex(flow, abortSignal, traceContext, traceIdentity, traceProperties)
+      default:
+        throw new Error(`Unknown execution engine: ${this.executionEngine}`)
+    }
+
     // Build tool context for tool execution (captured via closure in tool adapter)
     const toolContext: ToolContext = {
       state: this.state,
@@ -556,6 +591,106 @@ export class CanvasAgent {
     }
 
     return result
+  }
+
+  // ============================================================================
+  // Claude SDK Engine
+  // ============================================================================
+
+  /**
+   * Run the agent loop using the Claude Agent SDK (subscription auth).
+   *
+   * The Claude Agent SDK authenticates via the user's Claude Code subscription
+   * (Claude Pro/Max) — no API key needed. It spawns a Claude Code session that
+   * handles the entire tool loop internally (bash, file editing, etc.).
+   *
+   * We bridge via a subprocess (claude_bridge.mjs) that communicates over
+   * NDJSON stdin/stdout and map streaming events to Kanwas timeline items.
+   */
+  private async generateViaClaudeSDK(
+    flow: ResolvedProductAgentFlow,
+    abortSignal: AbortSignal | undefined,
+    traceContext: TraceContext,
+    traceIdentity: TraceIdentity
+  ): Promise<NativeGenerateResult> {
+    if (!this.claudeSDKEngine) {
+      this.claudeSDKEngine = new ClaudeSDKEngine({
+        model: process.env.CLAUDE_SDK_MODEL || flow.main.model || undefined,
+        maxTurns: flow.main.maxIterations,
+      })
+    }
+
+    // Build tool context (passed through but tools are managed by Claude Code)
+    const toolContext: ToolContext = {
+      state: this.state,
+      llm: this.llm,
+      eventStream: this.eventStream,
+      workspaceDocumentService: this.workspaceDocumentService,
+      webSearchService: this.webSearchService,
+      posthogService: this.posthogService,
+      sandboxManager: this.sandboxManager,
+      agent: { source: 'main' },
+      flow,
+      traceContext,
+      traceIdentity,
+      providerName: 'anthropic',
+      supportsNativeTools: true,
+      userId: this.state.currentContext.userId,
+      abortSignal,
+    }
+
+    const result = await this.claudeSDKEngine.execute(
+      {
+        flow,
+        abortSignal,
+        traceContext,
+        traceIdentity,
+      },
+      this.state,
+      this.eventStream,
+      this.sandboxManager,
+      toolContext
+    )
+
+    // Claude Agent SDK manages its own conversation; messages are empty
+    // but we still process any that were returned
+    for (const msg of result.messages) {
+      this.state.addMessage(msg as ModelMessage)
+    }
+
+    return result
+  }
+
+  // ============================================================================
+  // Codex Engine
+  // ============================================================================
+
+  private async generateViaCodex(
+    flow: ResolvedProductAgentFlow,
+    abortSignal: AbortSignal | undefined,
+    traceContext: TraceContext,
+    traceIdentity: TraceIdentity,
+    traceProperties?: ReplayTraceProperties
+  ): Promise<NativeGenerateResult> {
+    if (!this.codexEngine) {
+      this.codexEngine = new CodexEngine({
+        executable: process.env.CODEX_EXECUTABLE || 'codex',
+        model: process.env.CODEX_MODEL || undefined,
+      })
+    }
+
+    return this.codexEngine.execute(
+      {
+        flow,
+        abortSignal,
+        traceContext,
+        traceIdentity,
+        traceProperties,
+      },
+      this.state,
+      this.eventStream,
+      this.sandboxManager
+    )
   }
 
   // ============================================================================

@@ -1,10 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import { SandboxManager, type SandboxStartupConfig } from '#agent/sandbox/index'
+import { SandboxManager, type SandboxProvider, type SandboxStartupConfig } from '#agent/sandbox/index'
 import User from '#models/user'
 import agentConfig from '#config/agent'
 import redis from '@adonisjs/redis/services/main'
-
-type SandboxProvider = 'docker' | 'e2b'
 
 interface InvocationSandboxRecord {
   type: 'invocation'
@@ -73,7 +71,12 @@ export class SandboxRegistry {
   constructor() {}
 
   private getSandboxProvider(): SandboxProvider {
-    return (process.env.SANDBOX_PROVIDER as SandboxProvider) || 'docker'
+    const configuredProvider = process.env.SANDBOX_PROVIDER?.trim() as SandboxProvider | undefined
+    if (configuredProvider) {
+      return configuredProvider
+    }
+
+    return process.env.SANDBOX_E2B_TEMPLATE_ID?.trim() ? 'e2b' : 'host'
   }
 
   private buildSandboxManager(provider: SandboxProvider, startup: SandboxStartupConfig): SandboxManager {

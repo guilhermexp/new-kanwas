@@ -1,5 +1,6 @@
 import { DockerSandbox } from './docker.js'
 import { E2BSandbox } from './e2b.js'
+import { HostSandbox } from './host.js'
 import { type SandboxConfig, type SandboxInitOptions } from './types.js'
 import type { BaseSandbox, SandboxMetrics } from './base.js'
 
@@ -67,7 +68,18 @@ export class SandboxManager {
   }
 
   private createSandbox(): BaseSandbox {
-    return this.config.provider === 'docker' ? new DockerSandbox(this.config) : new E2BSandbox(this.config)
+    switch (this.config.provider) {
+      case 'host':
+        return new HostSandbox(this.config)
+      case 'docker':
+        return new DockerSandbox(this.config)
+      case 'e2b':
+        return new E2BSandbox(this.config)
+      default: {
+        const provider: never = this.config.provider
+        throw new Error(`Unsupported sandbox provider: ${provider}`)
+      }
+    }
   }
 
   private async cleanupFailedSandbox(): Promise<void> {
@@ -126,15 +138,22 @@ export class SandboxManager {
   }
 
   /**
-   * Get the sandbox ID (E2B only)
+   * Get the sandbox ID
    */
   getSandboxId(): string | null {
     return this.sandbox?.getSandboxId() ?? null
   }
 
   /**
+   * Get the host workspace path when the active provider exposes one.
+   */
+  getHostWorkspacePath(): string | null {
+    return this.sandbox?.getHostWorkspacePath() ?? null
+  }
+
+  /**
    * Get sandbox metrics and calculated cost (E2B only).
-   * Returns null for Docker sandbox or if not initialized.
+   * Returns null for Host/Docker sandbox or if not initialized.
    */
   async getMetricsAndCost(): Promise<SandboxMetrics | null> {
     if (!this.sandbox) return null
@@ -233,5 +252,6 @@ export class SandboxManager {
 
 export * from './types.js'
 export { BaseSandbox, type SandboxMetrics } from './base.js'
+export { HostSandbox } from './host.js'
 export { DockerSandbox } from './docker.js'
 export { E2BSandbox } from './e2b.js'

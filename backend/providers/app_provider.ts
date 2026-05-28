@@ -7,6 +7,31 @@ import { ContextualLogger } from '#services/contextual_logger'
 import { SandboxRegistry } from '#services/sandbox_registry'
 import PostHogService from '#services/posthog_service'
 import { createProviderFromConfig } from '#agent/providers/index'
+import type { ProviderConfig } from '#agent/providers/index'
+import { ANTHROPIC_DEFAULT_MODEL_TIERS, ANTHROPIC_DEFAULT_SUBAGENT_MODEL_TIERS } from 'shared/llm-config'
+
+function createAnthropicStubProvider(): ProviderConfig {
+  return {
+    name: 'anthropic',
+    createModel() {
+      throw new Error('LLM provider not available — using external engine')
+    },
+    generationOptions() {
+      return {}
+    },
+    promptOptions() {
+      return {}
+    },
+    formatMessages(m) {
+      return m
+    },
+    supportsThinking: true,
+    supportsCaching: false,
+    supportsNativeTools: true,
+    modelTiers: ANTHROPIC_DEFAULT_MODEL_TIERS,
+    subagentModelTiers: ANTHROPIC_DEFAULT_SUBAGENT_MODEL_TIERS,
+  }
+}
 
 export default class AppProvider {
   constructor(protected app: ApplicationService) {}
@@ -48,11 +73,22 @@ export default class AppProvider {
       const logger = await resolver.make(ContextualLoggerContract)
 
       // Request-scoped defaults are resolved after reading user/admin config from DB.
-      const provider = createProviderFromConfig(config, {}, { logger })
+      // When using claude-sdk or codex engine, LLM provider is optional (they use CLI subscriptions).
+      let provider: ReturnType<typeof createProviderFromConfig>
+      try {
+        provider = createProviderFromConfig(config, {}, { logger })
+      } catch {
+        if (config.executionEngine === 'vercel-ai' || !config.executionEngine) {
+          throw new Error('Missing LLM API key. Set ANTHROPIC_API_KEY or OPENAI_API_KEY.')
+        }
+        // Stub provider for non-vercel-ai engines — tools/sandbox still work, LLM calls go through the bridge
+        provider = createAnthropicStubProvider()
+      }
 
       return new CanvasAgent({
         provider,
         model: provider.modelTiers.big,
+        executionEngine: config.executionEngine,
         workspaceDocumentService,
         webSearchService,
         sandboxRegistry,

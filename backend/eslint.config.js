@@ -2,7 +2,7 @@ import { configApp } from '@adonisjs/eslint-config'
 export default configApp(
   {},
   {
-    ignores: ['.adonisjs/**', 'ace.js', 'server.js', 'scripts/**'],
+    ignores: ['.adonisjs/**', 'ace.js', 'server.js', 'scripts/**', 'libs/agent/bridge/**/*.mjs'],
   },
   {
     languageOptions: {

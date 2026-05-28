@@ -43,6 +43,13 @@ export default await Env.create(new URL('../', import.meta.url), {
   OPENAI_BASE_URL: Env.schema.string.optional(),
   GROQ_API_KEY: Env.schema.string.optional(),
 
+  EXECUTION_ENGINE: Env.schema.enum.optional(['vercel-ai', 'claude-sdk', 'codex'] as const),
+  CODEX_EXECUTABLE: Env.schema.string.optional(),
+  CODEX_MODEL: Env.schema.string.optional(),
+  CLAUDE_SDK_MODEL: Env.schema.string.optional(),
+  CLAUDE_CODE_EXECUTABLE: Env.schema.string.optional(),
+  CLAUDE_EXECUTABLE: Env.schema.string.optional(),
+
   POSTHOG_QUERY_API_KEY: Env.schema.string.optional(),
 
   /*
@@ -68,6 +75,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   */
   SENTRY_DSN: Env.schema.string.optional(),
   SANDBOX_SENTRY_DSN: Env.schema.string.optional(),
+  SANDBOX_PROVIDER: Env.schema.string.optional(),
   SANDBOX_E2B_TEMPLATE_ID: Env.schema.string.optional(),
 
   /*

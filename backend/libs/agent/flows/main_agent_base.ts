@@ -12,6 +12,7 @@ import {
 } from '../tools/index.js'
 import { buildExploreSubagentTools, buildExternalSubagentTools } from '../subagent/tools.js'
 import type { ProviderConfig } from '../providers/types.js'
+import type { ToolSet } from 'ai'
 import type { ProductAgentFlowDefinition } from './shared.js'
 
 interface CreateMainAgentFlowDefinitionOptions {
@@ -51,7 +52,7 @@ export function createMainAgentFlowDefinition(
         ...(options.includeSuggestNextTasksTool ? { [SUGGEST_NEXT_TASKS_TOOL_NAME]: suggestNextTasksTool } : {}),
         skill: skillInvokeTool,
         create_skill: createSkillTool,
-      }
+      } as ToolSet
     },
     stopWhenFactory: ({ maxIterations }) => [
       stepCountIs(maxIterations),

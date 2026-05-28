@@ -36,7 +36,7 @@ export function buildExploreSubagentTools(context: ToolContext): ToolSet {
   return {
     ...nativeTools,
     return_output: returnOutputTool,
-  }
+  } as ToolSet
 }
 
 export function buildExternalSubagentTools(context: ToolContext, composioTools: ToolSet = {}): ToolSet {
@@ -47,5 +47,5 @@ export function buildExternalSubagentTools(context: ToolContext, composioTools: 
     ...composioTools,
     ask_question: askQuestionTool,
     return_output: returnOutputTool,
-  }
+  } as ToolSet
 }

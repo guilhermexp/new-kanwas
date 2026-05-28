@@ -136,7 +136,12 @@ export default defineConfig({
       reloadServer: false,
     },
     {
+      pattern: 'libs/agent/bridge/**/*.mjs',
+      reloadServer: false,
+    },
+    {
       pattern: 'libs/templates/**/*.md',
       reloadServer: false,
-    },  ],
+    },
+  ],
 })

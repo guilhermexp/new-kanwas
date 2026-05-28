@@ -146,7 +146,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Initialize auth state from localStorage
   useEffect(() => {
     const initializeAuthState = async () => {
-      const storedToken = localStorage.getItem(TOKEN_KEY)
+      let storedToken = localStorage.getItem(TOKEN_KEY)
+
+      // Dev auto-login: register a dev user when no token exists
+      if (!storedToken && import.meta.env.DEV) {
+        try {
+          const resp = await fetch('/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: 'dev@kanwas.local', password: 'devdevdev' }),
+          })
+          if (!resp.ok) {
+            const regResp = await fetch('/auth/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: 'dev@kanwas.local', password: 'devdevdev', name: 'Dev User' }),
+            })
+            if (regResp.ok) {
+              const data = await regResp.json()
+              storedToken = data.value
+              if (storedToken) localStorage.setItem(TOKEN_KEY, storedToken)
+            }
+          } else {
+            const data = await resp.json()
+            storedToken = data.value
+            if (storedToken) localStorage.setItem(TOKEN_KEY, storedToken)
+          }
+        } catch {
+          /* dev auto-login failed, continue normally */
+        }
+      }
+
       applyToken(storedToken)
 
       if (storedToken) {

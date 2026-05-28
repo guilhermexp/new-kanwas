@@ -215,6 +215,10 @@ export type {
   PositionOptions,
 } from './constants.js'
 
+// Export execution engine config
+export type { ExecutionEngine } from './execution-config.js'
+export { DEFAULT_EXECUTION_ENGINE, resolveExecutionEngine } from './execution-config.js'
+
 // Export skills system
 export type {
   SkillName,
