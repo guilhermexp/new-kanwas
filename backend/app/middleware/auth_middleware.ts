@@ -81,6 +81,20 @@ export default class AuthMiddleware {
     return AuthMiddleware.devSetupPromise
   }
 
+  private async applyDevDefaultToken(ctx: HttpContext): Promise<boolean> {
+    if (process.env.NODE_ENV !== 'development') {
+      return false
+    }
+
+    await AuthMiddleware.ensureDevUser()
+    if (!AuthMiddleware.devToken) {
+      return false
+    }
+
+    ctx.request.headers().authorization = `Bearer ${AuthMiddleware.devToken}`
+    return true
+  }
+
   async handle(
     ctx: HttpContext,
     next: NextFn,
@@ -89,14 +103,18 @@ export default class AuthMiddleware {
       allowSandboxToken?: boolean
     } = {}
   ) {
-    if (process.env.NODE_ENV === 'development' && !ctx.request.header('authorization')) {
-      await AuthMiddleware.ensureDevUser()
-      if (AuthMiddleware.devToken) {
-        ctx.request.headers().authorization = `Bearer ${AuthMiddleware.devToken}`
-      }
-    }
+    await this.applyDevDefaultToken(ctx)
 
-    await ctx.auth.authenticateUsing(options.guards, { loginRoute: this.redirectTo })
+    try {
+      await ctx.auth.authenticateUsing(options.guards, { loginRoute: this.redirectTo })
+    } catch (error) {
+      // Retry with the default token in case auth state was not initialized yet.
+      if (!(await this.applyDevDefaultToken(ctx))) {
+        throw error
+      }
+
+      await ctx.auth.authenticateUsing(options.guards, { loginRoute: this.redirectTo })
+    }
 
     const token = ctx.auth.user?.currentAccessToken
     if (token && !token.allows('*') && !options.allowSandboxToken) {

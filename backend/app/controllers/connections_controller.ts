@@ -14,6 +14,7 @@ import {
   toolkitsQueryValidator,
 } from '#validators/connection'
 import { toError } from '#services/error_utils'
+import { extractComposioErrorDetails } from '#services/composio/error_classifier'
 
 @inject()
 export default class ConnectionsController {
@@ -35,29 +36,54 @@ export default class ConnectionsController {
       error,
     })
   }
+
+  private isComposioAuthUnavailable(error: unknown): boolean {
+    const details = extractComposioErrorDetails(error)
+    if (details.status !== 401) {
+      return false
+    }
+
+    const haystack = [details.message, details.code, details.slug].filter(Boolean).join(' ').toLowerCase()
+    return haystack.includes('api key') || haystack.includes('unauthorized') || haystack.includes('authentication')
+  }
   /**
    * GET /workspaces/:id/connections
    * List all connection statuses for the workspace
    */
-  async index({ params, auth }: HttpContext) {
+  async index({ params, auth, logger }: HttpContext) {
     const user = auth.getUserOrFail()
     const workspaceId = params.id
 
-    const [catalogEntries, workspaceConnections] = await Promise.all([
-      this.connectionsCatalogCacheService.getCatalog(() => this.composioService.listGlobalToolkitCatalog()),
-      this.composioService.listWorkspaceConnectedToolkits(user.id, workspaceId),
-    ])
+    try {
+      const [catalogEntries, workspaceConnections] = await Promise.all([
+        this.connectionsCatalogCacheService.getCatalog(() => this.composioService.listGlobalToolkitCatalog()),
+        this.composioService.listWorkspaceConnectedToolkits(user.id, workspaceId),
+      ])
 
-    const connections = this.composioService.mergeCatalogWithWorkspaceConnections(catalogEntries, workspaceConnections)
+      const connections = this.composioService.mergeCatalogWithWorkspaceConnections(
+        catalogEntries,
+        workspaceConnections
+      )
 
-    return { connections }
+      return { connections }
+    } catch (error) {
+      if (this.isComposioAuthUnavailable(error)) {
+        logger.warn(
+          { operation: 'connections.index_composio_unavailable', workspaceId, err: toError(error) },
+          'Composio is unavailable or misconfigured; returning empty connections list'
+        )
+        return { connections: [] }
+      }
+
+      throw error
+    }
   }
 
   /**
    * GET /workspaces/:id/connections/toolkits
    * Get list of available toolkits (integrations)
    */
-  async toolkits({ params, auth, request }: HttpContext) {
+  async toolkits({ params, auth, request, logger }: HttpContext) {
     const user = auth.getUserOrFail()
     const workspaceId = params.id
     const query = await toolkitsQueryValidator.validate(request.qs())
@@ -66,12 +92,24 @@ export default class ConnectionsController {
     const isConnected =
       query.isConnected === undefined ? undefined : query.isConnected.toLowerCase() === 'true' ? true : false
 
-    const toolkits = await this.composioService.listToolkits(user.id, workspaceId, {
-      search,
-      isConnected,
-    })
+    try {
+      const toolkits = await this.composioService.listToolkits(user.id, workspaceId, {
+        search,
+        isConnected,
+      })
 
-    return { toolkits }
+      return { toolkits }
+    } catch (error) {
+      if (this.isComposioAuthUnavailable(error)) {
+        logger.warn(
+          { operation: 'connections.toolkits_composio_unavailable', workspaceId, err: toError(error) },
+          'Composio is unavailable or misconfigured; returning empty toolkits list'
+        )
+        return { toolkits: [] }
+      }
+
+      throw error
+    }
   }
 
   /**
