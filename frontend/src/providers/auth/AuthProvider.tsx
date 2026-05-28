@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useEffect, type ReactNode } from 'react'
 import { proxy } from 'valtio'
 import { AuthContext, type AuthState, type User } from './AuthContext'
 import { TOKEN_KEY } from './tokenKey'
-import { tuyau, setAuthToken } from '@/api/client'
+import { tuyau, setAuthToken, baseURL } from '@/api/client'
 import { showToast } from '@/utils/toast'
 import { useQueryClient } from '@tanstack/react-query'
 import { clearPendingInviteToken, getPendingInviteToken, isInvalidInviteTokenMessage } from '@/lib/pendingInvite'
@@ -143,55 +143,57 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     [applyToken, queryClient, setUser, state]
   )
 
-  // Initialize auth state from localStorage
+  const loginWithDefaultUser = useCallback(async (): Promise<AuthResult> => {
+    const response = await fetch(`${baseURL}/auth/default`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    if (!response.ok) {
+      throw new Error('Default user login failed')
+    }
+
+    const responseData = (await response.json()) as { value?: unknown; workspaceId?: unknown }
+    if (typeof responseData.value !== 'string') {
+      throw new Error('Default user login completed without a bearer token')
+    }
+
+    applyToken(responseData.value)
+    await syncCurrentUser(true)
+
+    return {
+      workspaceId: typeof responseData.workspaceId === 'string' ? responseData.workspaceId : undefined,
+    }
+  }, [applyToken, syncCurrentUser])
+
+  // Initialize auth state from localStorage, falling back to the default single-user session.
   useEffect(() => {
     const initializeAuthState = async () => {
-      let storedToken = localStorage.getItem(TOKEN_KEY)
-
-      // Dev auto-login: register a dev user when no token exists
-      if (!storedToken && import.meta.env.DEV) {
-        try {
-          const resp = await fetch('/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: 'dev@kanwas.local', password: 'devdevdev' }),
-          })
-          if (!resp.ok) {
-            const regResp = await fetch('/auth/register', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: 'dev@kanwas.local', password: 'devdevdev', name: 'Dev User' }),
-            })
-            if (regResp.ok) {
-              const data = await regResp.json()
-              storedToken = data.value
-              if (storedToken) localStorage.setItem(TOKEN_KEY, storedToken)
-            }
-          } else {
-            const data = await resp.json()
-            storedToken = data.value
-            if (storedToken) localStorage.setItem(TOKEN_KEY, storedToken)
-          }
-        } catch {
-          /* dev auto-login failed, continue normally */
-        }
-      }
-
-      applyToken(storedToken)
+      const storedToken = localStorage.getItem(TOKEN_KEY)
 
       if (storedToken) {
+        applyToken(storedToken)
         try {
           await syncCurrentUser(true)
+          state.isLoading = false
+          return
         } catch {
-          // Invalid or expired token should silently reset auth state.
+          // Invalid or expired token should silently reset auth state and use default user below.
         }
       }
 
-      state.isLoading = false
+      try {
+        await loginWithDefaultUser()
+      } catch (error) {
+        console.error('Default user login failed:', error)
+        applyToken(null)
+      } finally {
+        state.isLoading = false
+      }
     }
 
     void initializeAuthState()
-  }, [applyToken, state, syncCurrentUser])
+  }, [applyToken, loginWithDefaultUser, state, syncCurrentUser])
 
   const login = async (email: string, password: string): Promise<AuthResult> => {
     const inviteToken = getPendingInviteToken()
@@ -273,7 +275,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       applyToken(null)
       queryClient.clear()
-      showToast('Successfully logged out', 'success')
+
+      try {
+        await loginWithDefaultUser()
+        showToast('Using default user', 'success')
+      } catch (error) {
+        console.error('Default user login failed:', error)
+        showToast('Default user login failed', 'error')
+      }
     }
   }
 

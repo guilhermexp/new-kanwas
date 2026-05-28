@@ -10,6 +10,7 @@ import {
 } from '#validators/auth'
 import { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { GoogleOAuthService } from '#services/google_oauth_service'
 import { OrganizationWorkspaceNotFoundError, WorkspaceService } from '#services/workspace_service'
 import { DateTime } from 'luxon'
@@ -83,6 +84,99 @@ export default class AuthController {
         organizationId: event.organizationId,
       })
     )
+  }
+
+  private getDefaultUserProfile() {
+    return {
+      email: process.env.DEFAULT_USER_EMAIL || 'dev@kanwas.local',
+      password: process.env.DEFAULT_USER_PASSWORD || 'devdevdev',
+      name: process.env.DEFAULT_USER_NAME || 'Dev User',
+      workspaceName: process.env.DEFAULT_WORKSPACE_NAME || 'Personal',
+    }
+  }
+
+  private async getFirstWorkspaceIdForUser(
+    userId: string,
+    trx: TransactionClientContract
+  ): Promise<string | undefined> {
+    const row = await trx
+      .from('workspace_users')
+      .where('user_id', userId)
+      .orderBy('created_at', 'asc')
+      .orderBy('workspace_id', 'asc')
+      .first()
+
+    return typeof row?.workspace_id === 'string' ? row.workspace_id : undefined
+  }
+
+  async defaultUser({ response, correlationId }: HttpContext) {
+    const profile = this.getDefaultUserProfile()
+    let user: User
+    let workspaceId: string | undefined
+    let pendingWorkspaceCreatedEvent: PendingWorkspaceCreatedEvent | null = null
+
+    try {
+      const result = await db.transaction(async (trx) => {
+        let defaultUser = await User.query({ client: trx }).where('email', profile.email).first()
+
+        if (!defaultUser) {
+          defaultUser = await User.create(
+            {
+              email: profile.email,
+              password: profile.password,
+              name: profile.name,
+            },
+            { client: trx }
+          )
+        }
+
+        const existingWorkspaceId = await this.getFirstWorkspaceIdForUser(defaultUser.id, trx)
+        if (existingWorkspaceId) {
+          return {
+            user: defaultUser,
+            workspaceId: existingWorkspaceId,
+            pendingWorkspaceCreatedEvent: null,
+          }
+        }
+
+        const workspace = await this.workspaceService.createWorkspaceForUser(
+          defaultUser.id,
+          profile.workspaceName,
+          trx,
+          correlationId
+        )
+
+        return {
+          user: defaultUser,
+          workspaceId: workspace.id,
+          pendingWorkspaceCreatedEvent: {
+            workspaceId: workspace.id,
+            organizationId: workspace.organizationId,
+            source: 'onboarding' as const,
+          },
+        }
+      })
+
+      user = result.user
+      workspaceId = result.workspaceId
+      pendingWorkspaceCreatedEvent = result.pendingWorkspaceCreatedEvent
+    } catch (error) {
+      if (handleWorkspaceSeedFailure(error, response)) {
+        return
+      }
+
+      throw error
+    }
+
+    this.dispatchWorkspaceCreated(user.id, pendingWorkspaceCreatedEvent)
+
+    const token = await User.accessTokens.create(user)
+
+    return {
+      type: 'bearer',
+      value: token.value!.release(),
+      workspaceId,
+    }
   }
 
   async register({ request, response, correlationId }: HttpContext) {

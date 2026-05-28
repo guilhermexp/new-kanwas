@@ -37,6 +37,7 @@ router
 
 router
   .group(() => {
+    router.post('/default', [AuthController, 'defaultUser']).as('default')
     router.post('/register', [AuthController, 'register']).as('register')
     router.post('/login', [AuthController, 'login']).as('login')
     router.post('/logout', [AuthController, 'logout']).use([middleware.auth(), middleware.logContext()]).as('logout')
