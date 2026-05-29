@@ -1,5 +1,8 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { EventEmitter } from 'node:events'
+import { chmodSync, copyFileSync, existsSync, mkdirSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 
 // ============================================================================
 // Types
@@ -12,6 +15,13 @@ export interface CodexProcessManagerOptions {
   workingDirectory: string
   /** Request timeout for app-server JSON-RPC calls */
   requestTimeoutMs?: number
+  /**
+   * Isolated CODEX_HOME for the app-server. Seeded with the host's
+   * `~/.codex/auth.json` so Codex authenticates with the existing CLI login
+   * (e.g. a ChatGPT subscription) without mutating the user's real ~/.codex.
+   * Defaults to `~/.kanwas/codex-home`.
+   */
+  codexHome?: string
 }
 
 export interface CodexCreateThreadOptions {
@@ -63,12 +73,39 @@ export class CodexProcessManager extends EventEmitter {
   private readonly executable: string
   private readonly workingDirectory: string
   private readonly requestTimeoutMs: number
+  private readonly codexHome: string
 
   constructor(options: CodexProcessManagerOptions) {
     super()
     this.executable = options.executable || 'codex'
     this.workingDirectory = options.workingDirectory
     this.requestTimeoutMs = options.requestTimeoutMs ?? 60_000
+    this.codexHome = options.codexHome || process.env.CODEX_HOME || join(homedir(), '.kanwas', 'codex-home')
+  }
+
+  /**
+   * Ensures an isolated CODEX_HOME exists and is seeded with the host login.
+   * Copies `~/.codex/auth.json` (the token already provisioned by the Codex
+   * CLI) into the isolated home when absent, mirroring the OpenClicky approach.
+   * Returns the resolved CODEX_HOME path.
+   */
+  private prepareCodexHome(): string {
+    mkdirSync(this.codexHome, { recursive: true, mode: 0o700 })
+    // Tighten in case the directory pre-existed with broader permissions.
+    chmodSync(this.codexHome, 0o700)
+
+    const destAuth = join(this.codexHome, 'auth.json')
+    if (!existsSync(destAuth)) {
+      const sourceAuth = join(homedir(), '.codex', 'auth.json')
+      if (existsSync(sourceAuth)) {
+        // auth.json holds OAuth tokens; copyFileSync does not preserve the
+        // source mode, so enforce owner-only access on the destination.
+        copyFileSync(sourceAuth, destAuth)
+        chmodSync(destAuth, 0o600)
+      }
+    }
+
+    return this.codexHome
   }
 
   get isRunning(): boolean {
@@ -82,6 +119,8 @@ export class CodexProcessManager extends EventEmitter {
   async start(): Promise<void> {
     if (this.isRunning) return
 
+    const codexHome = this.prepareCodexHome()
+
     const proc = spawn(
       this.executable,
       ['app-server', '--listen', 'stdio://', '-c', 'approval_policy="never"', '-c', 'sandbox_mode="workspace-write"'],
@@ -91,6 +130,7 @@ export class CodexProcessManager extends EventEmitter {
         env: {
           ...process.env,
           PATH: this.ensurePaths(process.env.PATH || ''),
+          CODEX_HOME: codexHome,
         },
       }
     )

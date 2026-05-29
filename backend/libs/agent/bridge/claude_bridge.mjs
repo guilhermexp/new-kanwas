@@ -210,13 +210,14 @@ function handleSDKMessage(message) {
     currentText = ''
 
     if (message.is_error) {
-      const errors = Array.isArray(message.errors)
-        ? message.errors.join('\n')
-        : 'Claude Agent SDK query failed.'
+      // On a failed turn the SDK reports subtype 'success' with the human-readable
+      // reason in `result` (e.g. invalid API key, model not found), so prefer it.
+      const errors = Array.isArray(message.errors) ? message.errors.join('\n') : ''
+      const detail = typeof message.result === 'string' ? message.result : ''
       emit({
         type: 'error',
         id,
-        message: errors || message.subtype || 'Claude Agent SDK query failed.',
+        message: errors || detail || message.subtype || 'Claude Agent SDK query failed.',
       })
     } else {
       emit({
@@ -273,6 +274,13 @@ try {
 
   emit({ type: 'ready', sdkPath })
 
+  // The claude-sdk engine authenticates via the Claude Code subscription (the
+  // logged-in CLI credentials). A stray ANTHROPIC_API_KEY in the environment
+  // would override that and force API-key auth, so strip it for the bridge.
+  const bridgeEnv = { ...process.env, CLAUDE_AGENT_SDK_CLIENT_APP: 'kanwas/1.0' }
+  delete bridgeEnv.ANTHROPIC_API_KEY
+  delete bridgeEnv.ANTHROPIC_AUTH_TOKEN
+
   const options = {
     model: process.env.KANWAS_CLAUDE_MODEL || 'claude-sonnet-4-6',
     cwd: process.env.KANWAS_CLAUDE_CWD || process.cwd(),
@@ -288,10 +296,7 @@ try {
     includeHookEvents: false,
     persistSession: false,
     settingSources: [],
-    env: {
-      ...process.env,
-      CLAUDE_AGENT_SDK_CLIENT_APP: 'kanwas/1.0',
-    },
+    env: bridgeEnv,
   }
 
   const stream = query({
