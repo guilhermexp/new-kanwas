@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import i18n from '@/i18n'
 import { useEditor, EditorContent } from '@tiptap/react'
 import type { JSONContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -458,7 +459,7 @@ export function ChatInput({
         horizontalRule: false,
       }),
       Placeholder.configure({
-        placeholder: 'So... what are we going to do next?',
+        placeholder: i18n.t('chat.placeholder'),
       }),
       mentionExtension,
       slashCommandExtension,

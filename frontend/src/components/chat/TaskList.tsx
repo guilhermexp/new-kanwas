@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { WorkspaceSuggestedTask } from '@/api/suggestedTasks'
 import type { TaskListItem } from '@/api/tasks'
 import type { WorkspaceOnboardingStatus } from '@/api/workspaces'
@@ -419,6 +420,7 @@ export function TaskList({
   onCanvasSelect,
   onRetry,
 }: TaskListProps) {
+  const { t } = useTranslation()
   const [randomTip] = useState(() => tips[Math.floor(Math.random() * tips.length)])
 
   const groupedTasks = useMemo(() => groupTasksByTime(tasks), [tasks])
@@ -445,7 +447,7 @@ export function TaskList({
 
   const header = (
     <div className="px-4 pt-[18px] pb-2">
-      <span className="text-md font-bold text-foreground">Tasks</span>
+      <span className="text-md font-bold text-foreground">{t('chat.tasks')}</span>
     </div>
   )
 

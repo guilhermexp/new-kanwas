@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Modal, ModalContent } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { useOrganization } from '@/hooks/useOrganizations'
@@ -7,6 +8,7 @@ import { toUrlUuid } from '@/utils/uuid'
 import { TeamSwitcherSidebar } from './team-settings/TeamSwitcherSidebar'
 import { useTeamSidebarResize } from './team-settings/useTeamSidebarResize'
 import { AgentEngineSection } from './team-settings/AgentEngineSection'
+import { LanguageSection } from './team-settings/LanguageSection'
 import { ProfileSection } from './team-settings/ProfileSection'
 import { TeamNameSection } from './team-settings/TeamNameSection'
 import { MembersSection } from './team-settings/MembersSection'
@@ -20,6 +22,7 @@ interface OrganizationSettingsModalProps {
 }
 
 export function OrganizationSettingsModal({ isOpen, onClose, workspaceId }: OrganizationSettingsModalProps) {
+  const { t } = useTranslation()
   const { data: organization } = useOrganization(workspaceId)
   const isAdmin = organization?.role === 'admin'
   const navigate = useNavigate()
@@ -45,12 +48,12 @@ export function OrganizationSettingsModal({ isOpen, onClose, workspaceId }: Orga
                 <i className="fa-solid fa-users text-sm text-foreground-muted" />
               </div>
               <div className="space-y-1">
-                <h2 className="text-base font-semibold text-foreground">Team settings</h2>
-                <p className="text-xs text-foreground-muted">Manage your profile, members, and invite links.</p>
+                <h2 className="text-base font-semibold text-foreground">{t('settings.teamSettings')}</h2>
+                <p className="text-xs text-foreground-muted">{t('settings.teamSettingsSubtitle')}</p>
               </div>
             </div>
 
-            <Button size="icon" variant="ghost" onClick={onClose} aria-label="Close">
+            <Button size="icon" variant="ghost" onClick={onClose} aria-label={t('common.close')}>
               <i className="fa-solid fa-xmark text-foreground-muted" />
             </Button>
           </div>
@@ -70,6 +73,7 @@ export function OrganizationSettingsModal({ isOpen, onClose, workspaceId }: Orga
                 <TeamNameSection workspaceId={workspaceId} isOpen={isOpen} />
               </div>
               <AgentEngineSection isOpen={isOpen} />
+              <LanguageSection isOpen={isOpen} />
               <UsageSection workspaceId={workspaceId} isOpen={isOpen} />
               <MembersSection workspaceId={workspaceId} isAdmin={isAdmin} isOpen={isOpen} />
               <InvitesSection workspaceId={workspaceId} isAdmin={isAdmin} isOpen={isOpen} />

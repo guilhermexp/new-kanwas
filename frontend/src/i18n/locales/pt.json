@@ -1,0 +1,43 @@
+{
+  "common": {
+    "close": "Fechar",
+    "cancel": "Cancelar",
+    "save": "Salvar",
+    "retry": "Tentar novamente",
+    "loading": "Carregando...",
+    "selectCanvas": "Selecione um canvas"
+  },
+  "explorer": {
+    "canvases": "Canvases",
+    "documents": "Documentos",
+    "powertools": "Ferramentas",
+    "home": "Início",
+    "newCanvas": "Novo Canvas",
+    "newDocument": "Novo Documento",
+    "expandAll": "Expandir Tudo",
+    "collapseAll": "Recolher Tudo",
+    "skills": "Skills",
+    "connections": "Conexões",
+    "cliTool": "Ferramenta CLI",
+    "cliTooltip": "Sincronize este workspace com seu sistema de arquivos local — importe markdown existente, edite no seu editor ou com um agente de código como o Claude Code, e sincronize o progresso ao vivo.",
+    "installCli": "Instalar a CLI do Kanwas"
+  },
+  "settings": {
+    "teamSettings": "Configurações da equipe",
+    "teamSettingsSubtitle": "Gerencie seu perfil, membros e links de convite.",
+    "agent": "Agente",
+    "agentLoadError": "Não foi possível carregar as configurações do agente.",
+    "agentNote": "Aplica-se a novas tarefas. Agentes CLI (Codex / Claude Code) usam o login da sua assinatura local.",
+    "language": "Idioma",
+    "languageNote": "Altera o idioma da interface para sua conta.",
+    "languageLoadError": "Não foi possível carregar as configurações de idioma."
+  },
+  "chat": {
+    "tasks": "Tarefas",
+    "placeholder": "Então... o que vamos fazer agora?"
+  },
+  "languages": {
+    "en": "Inglês",
+    "pt": "Português"
+  }
+}

@@ -26,6 +26,7 @@ import { WorkspaceInterlinksProvider } from '@/providers/workspace-interlinks'
 import { buildWorkspaceInterlinkSuggestions } from '@/lib/workspaceInterlinks'
 import { describeConnectionLoss } from '@/lib/liveConnection'
 import { useWorkspaceStructure } from '@/hooks/useWorkspaceStructure'
+import { useLanguageSync } from '@/hooks/useLanguageSync'
 import thinkingAnimation from '@/assets/thinking-animation.png'
 import {
   type CanvasFitRequest,
@@ -834,6 +835,8 @@ export function WorkspacePage({
   routeCanvasPath?: string
 }) {
   const finalWorkspaceId = workspaceId || 'test-workspace'
+
+  useLanguageSync()
 
   return (
     <WorkspaceProvider workspaceId={finalWorkspaceId}>

@@ -5,16 +5,20 @@ import { getExecutionEnginePreset } from 'shared/execution-config'
 
 import { tuyau } from './client'
 
+import type { AppLanguage } from '@/i18n'
+
 export interface UserConfig {
   dismissedTipIds?: string[]
   llmProvider?: LlmProviderName | null
   llmModel?: string | null
   executionEngine?: ExecutionEngine | null
+  language?: AppLanguage | null
 }
 
 export interface UserConfigUpdate {
   dismissedTipIds?: string[]
   executionEngine?: ExecutionEngine | null
+  language?: AppLanguage | null
 }
 
 export const DEFAULT_USER_LLM_HEADER_LABEL = getUserLlmHeaderLabel()

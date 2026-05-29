@@ -1,0 +1,43 @@
+{
+  "common": {
+    "close": "Close",
+    "cancel": "Cancel",
+    "save": "Save",
+    "retry": "Retry",
+    "loading": "Loading...",
+    "selectCanvas": "Select a canvas"
+  },
+  "explorer": {
+    "canvases": "Canvases",
+    "documents": "Documents",
+    "powertools": "Powertools",
+    "home": "Home",
+    "newCanvas": "New Canvas",
+    "newDocument": "New Document",
+    "expandAll": "Expand All",
+    "collapseAll": "Collapse All",
+    "skills": "Skills",
+    "connections": "Connections",
+    "cliTool": "CLI Tool",
+    "cliTooltip": "Sync this workspace with your local filesystem — import existing markdown, edit in your editor or with a coding agent like Claude Code, and live sync the progress.",
+    "installCli": "Install the Kanwas CLI"
+  },
+  "settings": {
+    "teamSettings": "Team settings",
+    "teamSettingsSubtitle": "Manage your profile, members, and invite links.",
+    "agent": "Agent",
+    "agentLoadError": "Unable to load agent settings.",
+    "agentNote": "Applies to new tasks. CLI agents (Codex / Claude Code) use your local subscription login.",
+    "language": "Language",
+    "languageNote": "Changes the interface language for your account.",
+    "languageLoadError": "Unable to load language settings."
+  },
+  "chat": {
+    "tasks": "Tasks",
+    "placeholder": "So... what are we going to do next?"
+  },
+  "languages": {
+    "en": "English",
+    "pt": "Portuguese"
+  }
+}

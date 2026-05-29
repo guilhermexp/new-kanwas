@@ -5,6 +5,7 @@ import '@blocknote/mantine/style.css'
 import 'streamdown/styles.css'
 
 import '@/index.css'
+import '@/i18n'
 import App from '@/App.tsx'
 
 createRoot(document.getElementById('root')!).render(<App />)

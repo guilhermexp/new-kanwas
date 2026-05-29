@@ -11,6 +11,8 @@ export interface GlobalUserConfig {
   llmServiceTier?: ProviderServiceTier | null
   /** Selected agent execution engine (overrides the EXECUTION_ENGINE env per user). */
   executionEngine?: ExecutionEngine | null
+  /** Interface language for the user (frontend i18n). */
+  language?: 'en' | 'pt' | null
 }
 
 const DEFAULTS: GlobalUserConfig = {}

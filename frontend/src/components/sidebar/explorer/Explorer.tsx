@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { CanvasItem } from 'shared'
 import type { Workspace } from '@/api/client'
 import { WorkspaceHeader } from '@/components/workspaces/WorkspaceHeader'
@@ -39,6 +40,7 @@ export function Explorer({
   isLoadingWorkspaces,
   selectedNodeIds,
 }: ExplorerProps) {
+  const { t } = useTranslation()
   const { connectionsModalOpen, connectionsModalInitialSearch, openConnectionsModal, closeConnectionsModal } =
     useConnectionsModal()
   const [showSkillsModal, setShowSkillsModal] = useState(false)
@@ -145,16 +147,16 @@ export function Explorer({
             {/* Canvas section */}
             <div className="flex flex-col min-h-0" style={{ flex: explorerSplitPercent }}>
               <SectionHeader
-                title="Canvases"
+                title={t('explorer.canvases')}
                 actions={[
                   {
                     icon: 'fa-sharp fa-solid fa-arrows-from-line',
-                    title: expandedAll ? 'Collapse All' : 'Expand All',
+                    title: expandedAll ? t('explorer.collapseAll') : t('explorer.expandAll'),
                     onClick: handleToggleExpandAll,
                   },
                   {
                     icon: 'fa-solid fa-plus',
-                    title: 'New Canvas',
+                    title: t('explorer.newCanvas'),
                     onClick: handleCreateCanvas,
                   },
                 ]}
@@ -176,7 +178,7 @@ export function Explorer({
                   <span
                     className={`text-sm font-medium ${activeCanvasId === 'root' ? 'text-sidebar-item-text-active' : 'text-sidebar-item-text'}`}
                   >
-                    Home
+                    {t('explorer.home')}
                   </span>
                 </div>
               </div>
@@ -196,7 +198,11 @@ export function Explorer({
 
             {/* Document section */}
             <div className="flex flex-col min-h-0" style={{ flex: 100 - explorerSplitPercent }}>
-              <SectionHeader title="Documents" onAdd={handleCreateDocument} addTitle="New Document" />
+              <SectionHeader
+                title={t('explorer.documents')}
+                onAdd={handleCreateDocument}
+                addTitle={t('explorer.newDocument')}
+              />
 
               {activeCanvas ? (
                 <DocumentList
@@ -209,7 +215,7 @@ export function Explorer({
                 />
               ) : (
                 <div className="flex-1 flex items-center justify-center text-xs text-foreground-muted italic px-4">
-                  Select a canvas
+                  {t('common.selectCanvas')}
                 </div>
               )}
             </div>
@@ -219,7 +225,7 @@ export function Explorer({
 
       <div className="shrink-0">
         <div className="h-px bg-[var(--sidebar-edge-border)]" />
-        <SectionHeader title="Powertools" />
+        <SectionHeader title={t('explorer.powertools')} />
         <SkillsFooter
           enabledCount={enabledSkillsCount}
           totalCount={totalSkillsCount}
