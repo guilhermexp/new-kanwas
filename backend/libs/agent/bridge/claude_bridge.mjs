@@ -27,6 +27,7 @@ import readline from 'node:readline'
 const require = createRequire(import.meta.url)
 
 import { execSync } from 'node:child_process'
+import { resolveSdkErrorMessage, sanitizeBridgeEnv } from './claude_bridge_auth.mjs'
 
 function findClaude() {
   try {
@@ -210,14 +211,10 @@ function handleSDKMessage(message) {
     currentText = ''
 
     if (message.is_error) {
-      // On a failed turn the SDK reports subtype 'success' with the human-readable
-      // reason in `result` (e.g. invalid API key, model not found), so prefer it.
-      const errors = Array.isArray(message.errors) ? message.errors.join('\n') : ''
-      const detail = typeof message.result === 'string' ? message.result : ''
       emit({
         type: 'error',
         id,
-        message: errors || detail || message.subtype || 'Claude Agent SDK query failed.',
+        message: resolveSdkErrorMessage(message),
       })
     } else {
       emit({
@@ -274,12 +271,8 @@ try {
 
   emit({ type: 'ready', sdkPath })
 
-  // The claude-sdk engine authenticates via the Claude Code subscription (the
-  // logged-in CLI credentials). A stray ANTHROPIC_API_KEY in the environment
-  // would override that and force API-key auth, so strip it for the bridge.
-  const bridgeEnv = { ...process.env, CLAUDE_AGENT_SDK_CLIENT_APP: 'kanwas/1.0' }
-  delete bridgeEnv.ANTHROPIC_API_KEY
-  delete bridgeEnv.ANTHROPIC_AUTH_TOKEN
+  // Strip API-key auth vars so the SDK uses the Claude Code subscription login.
+  const bridgeEnv = sanitizeBridgeEnv(process.env)
 
   const options = {
     model: process.env.KANWAS_CLAUDE_MODEL || 'claude-sonnet-4-6',

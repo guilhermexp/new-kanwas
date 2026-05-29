@@ -169,6 +169,15 @@ Kanwas treats the agent as an eventful runtime, not a single API call.
 - Platform can apply policy and limits around execution.
 - System can preserve a reliable timeline for auditing and debugging.
 
+## Execution engines
+
+The reasoning loop is driven by a pluggable execution engine selected with
+`EXECUTION_ENGINE`: `vercel-ai` (in-process, API-key auth — the default),
+`claude-sdk` (Claude Code subscription), or `codex` (Codex/ChatGPT
+subscription). The CLI engines run the agent against a developer's local CLI
+login and require the backend to run on the host. See
+[EXECUTION_ENGINES.md](./EXECUTION_ENGINES.md) for setup, auth, and gotchas.
+
 ---
 
 ## Sandboxed execution model

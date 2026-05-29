@@ -42,6 +42,21 @@ Run tests:
 node ace test
 ```
 
+### Agent execution engines
+
+The agent loop runs on one of three engines, selected with `EXECUTION_ENGINE`
+(`vercel-ai` default, `claude-sdk`, `codex`). The `claude-sdk` and `codex`
+engines authenticate with the **local CLI subscription** (Claude Code / Codex)
+and therefore require the backend to run **on the host**, not in Docker:
+
+```bash
+cd backend && pnpm dev   # Postgres/Redis/yjs can stay in Docker
+```
+
+Restart after changing `EXECUTION_ENGINE` / `CLAUDE_SDK_MODEL` / `CODEX_*` — HMR
+does not reload env. Full reference (auth, env vars, gotchas):
+[../docs/EXECUTION_ENGINES.md](../docs/EXECUTION_ENGINES.md).
+
 ### API Documentation
 
 Swagger UI is available at `http://localhost:3333/api` when the server is running.

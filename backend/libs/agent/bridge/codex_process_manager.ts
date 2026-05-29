@@ -22,6 +22,11 @@ export interface CodexProcessManagerOptions {
    * Defaults to `~/.kanwas/codex-home`.
    */
   codexHome?: string
+  /**
+   * Path to the host's Codex credentials seeded into the isolated CODEX_HOME.
+   * Defaults to `~/.codex/auth.json`. Overridable for tests.
+   */
+  sourceAuthPath?: string
 }
 
 export interface CodexCreateThreadOptions {
@@ -74,6 +79,7 @@ export class CodexProcessManager extends EventEmitter {
   private readonly workingDirectory: string
   private readonly requestTimeoutMs: number
   private readonly codexHome: string
+  private readonly sourceAuthPath: string
 
   constructor(options: CodexProcessManagerOptions) {
     super()
@@ -81,6 +87,7 @@ export class CodexProcessManager extends EventEmitter {
     this.workingDirectory = options.workingDirectory
     this.requestTimeoutMs = options.requestTimeoutMs ?? 60_000
     this.codexHome = options.codexHome || process.env.CODEX_HOME || join(homedir(), '.kanwas', 'codex-home')
+    this.sourceAuthPath = options.sourceAuthPath || join(homedir(), '.codex', 'auth.json')
   }
 
   /**
@@ -95,14 +102,11 @@ export class CodexProcessManager extends EventEmitter {
     chmodSync(this.codexHome, 0o700)
 
     const destAuth = join(this.codexHome, 'auth.json')
-    if (!existsSync(destAuth)) {
-      const sourceAuth = join(homedir(), '.codex', 'auth.json')
-      if (existsSync(sourceAuth)) {
-        // auth.json holds OAuth tokens; copyFileSync does not preserve the
-        // source mode, so enforce owner-only access on the destination.
-        copyFileSync(sourceAuth, destAuth)
-        chmodSync(destAuth, 0o600)
-      }
+    if (!existsSync(destAuth) && existsSync(this.sourceAuthPath)) {
+      // auth.json holds OAuth tokens; copyFileSync does not preserve the
+      // source mode, so enforce owner-only access on the destination.
+      copyFileSync(this.sourceAuthPath, destAuth)
+      chmodSync(destAuth, 0o600)
     }
 
     return this.codexHome
