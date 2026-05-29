@@ -30,3 +30,41 @@ export function resolveExecutionEngine(): ExecutionEngine {
 
   return DEFAULT_EXECUTION_ENGINE
 }
+
+/**
+ * User-selectable agent presets shown in settings. Each maps to an execution
+ * engine and (optionally) a model the engine should use. `model: null` lets the
+ * engine use its own default (e.g. CODEX_MODEL / Codex CLI default).
+ */
+export interface ExecutionEnginePreset {
+  id: ExecutionEngine
+  label: string
+  description: string
+  model: string | null
+}
+
+export const EXECUTION_ENGINE_PRESETS: readonly ExecutionEnginePreset[] = [
+  {
+    id: 'codex',
+    label: 'Codex',
+    description: 'OpenAI Codex CLI (GPT-5.5)',
+    model: null,
+  },
+  {
+    id: 'claude-sdk',
+    label: 'Claude Code',
+    description: 'Anthropic Claude Code (Opus 4.8)',
+    model: 'claude-opus-4-8',
+  },
+  {
+    id: 'vercel-ai',
+    label: 'Built-in (API key)',
+    description: 'In-process Vercel AI SDK loop',
+    model: null,
+  },
+]
+
+export function getExecutionEnginePreset(engine: string | null | undefined): ExecutionEnginePreset | undefined {
+  if (!engine) return undefined
+  return EXECUTION_ENGINE_PRESETS.find((preset) => preset.id === engine)
+}

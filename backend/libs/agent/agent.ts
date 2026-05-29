@@ -57,6 +57,7 @@ export class CanvasAgent {
   private sandboxManager: SandboxManager
   private codexEngine: CodexEngine | null = null
   private claudeSDKEngine: ClaudeSDKEngine | null = null
+  private engineModelOverride: string | undefined
   private replayTraceProperties: ReplayTraceProperties | undefined
 
   constructor(config: AgentConfig) {
@@ -81,6 +82,16 @@ export class CanvasAgent {
     this.provider = provider
     this.llm = new LLM({ provider, model: provider.modelTiers.big, posthogService: this.posthogService })
     this.state.setProvider(provider.name)
+  }
+
+  /**
+   * Override the execution engine (and optionally the model the CLI engine
+   * should use) for this agent instance. Called from start_agent.ts when the
+   * user picked an engine in settings, overriding the EXECUTION_ENGINE env.
+   */
+  overrideExecutionEngine(engine: ExecutionEngine, model?: string | null) {
+    this.executionEngine = engine
+    this.engineModelOverride = model ?? undefined
   }
 
   loadState(state: SerializedState) {
@@ -615,7 +626,7 @@ export class CanvasAgent {
   ): Promise<NativeGenerateResult> {
     if (!this.claudeSDKEngine) {
       this.claudeSDKEngine = new ClaudeSDKEngine({
-        model: process.env.CLAUDE_SDK_MODEL || flow.main.model || undefined,
+        model: this.engineModelOverride || process.env.CLAUDE_SDK_MODEL || flow.main.model || undefined,
         maxTurns: flow.main.maxIterations,
       })
     }
@@ -675,7 +686,7 @@ export class CanvasAgent {
     if (!this.codexEngine) {
       this.codexEngine = new CodexEngine({
         executable: process.env.CODEX_EXECUTABLE || 'codex',
-        model: process.env.CODEX_MODEL || undefined,
+        model: this.engineModelOverride || process.env.CODEX_MODEL || undefined,
       })
     }
 

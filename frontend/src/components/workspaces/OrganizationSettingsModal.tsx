@@ -6,6 +6,7 @@ import { useOrganization } from '@/hooks/useOrganizations'
 import { toUrlUuid } from '@/utils/uuid'
 import { TeamSwitcherSidebar } from './team-settings/TeamSwitcherSidebar'
 import { useTeamSidebarResize } from './team-settings/useTeamSidebarResize'
+import { AgentEngineSection } from './team-settings/AgentEngineSection'
 import { ProfileSection } from './team-settings/ProfileSection'
 import { TeamNameSection } from './team-settings/TeamNameSection'
 import { MembersSection } from './team-settings/MembersSection'
@@ -68,6 +69,7 @@ export function OrganizationSettingsModal({ isOpen, onClose, workspaceId }: Orga
                 <ProfileSection isOpen={isOpen} />
                 <TeamNameSection workspaceId={workspaceId} isOpen={isOpen} />
               </div>
+              <AgentEngineSection isOpen={isOpen} />
               <UsageSection workspaceId={workspaceId} isOpen={isOpen} />
               <MembersSection workspaceId={workspaceId} isAdmin={isAdmin} isOpen={isOpen} />
               <InvitesSection workspaceId={workspaceId} isAdmin={isAdmin} isOpen={isOpen} />

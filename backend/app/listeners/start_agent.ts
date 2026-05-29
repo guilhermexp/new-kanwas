@@ -1,5 +1,6 @@
 import { CanvasAgent, type ConnectedExternalTool } from '#agent/index'
 import { hasUserLlmOverrides, resolveProviderFromUserConfig } from '#agent/providers/user_config'
+import { getExecutionEnginePreset } from 'shared/execution-config'
 import { SocketioServer } from '#contracts/socketio_server'
 import AgentInvoked from '#events/agent_invoked'
 import Invocation from '#models/invocation'
@@ -235,6 +236,15 @@ export default class StartAgent {
             llmServiceTier: userConfig.llmServiceTier,
           },
           'Applied effective LLM config'
+        )
+      }
+
+      if (userConfig.executionEngine) {
+        const preset = getExecutionEnginePreset(userConfig.executionEngine)
+        agent.overrideExecutionEngine(userConfig.executionEngine, preset?.model)
+        logger.info(
+          { executionEngine: userConfig.executionEngine, engineModel: preset?.model ?? null },
+          'Applied user execution engine'
         )
       }
     } catch (error) {

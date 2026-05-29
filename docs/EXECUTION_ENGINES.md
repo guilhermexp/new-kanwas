@@ -12,6 +12,24 @@ resolved by `shared/src/execution-config.ts`.
 
 `vercel-ai` is the fallback when `EXECUTION_ENGINE` is unset or invalid.
 
+## Selecting the engine
+
+Two levels, in precedence order:
+
+1. **Per-user (UI)** — Team settings → **Agent** section. The user picks a preset
+   (Codex / Claude Code / Built-in); the choice persists in their user config
+   (`executionEngine`) and is applied at invocation by `start_agent.ts`,
+   overriding the env. Presets live in `shared/execution-config.ts`
+   (`EXECUTION_ENGINE_PRESETS`) and also carry the model the engine should use
+   (e.g. Claude Code → `claude-opus-4-8`). The chat header badge reflects the
+   selected engine's model.
+2. **Env default** — `EXECUTION_ENGINE` is used for users with no per-user
+   choice.
+
+> The agent's self-reported model (when asked "what model are you?") is not
+> reliable — LLMs don't reliably know their own version. The source of truth is
+> the `Applied user execution engine` log line and the model id sent to the API.
+
 > **Convention:** the `claude-sdk` and `codex` engines authenticate with the
 > **logged-in CLI subscription on the host**, not an API key. They are the
 > supported way to run the agent against a developer's Claude/Codex

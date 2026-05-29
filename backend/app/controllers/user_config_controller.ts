@@ -6,6 +6,7 @@ import vine from '@vinejs/vine'
 const updateConfigValidator = vine.compile(
   vine.object({
     dismissedTipIds: vine.array(vine.string()).optional(),
+    executionEngine: vine.enum(['vercel-ai', 'claude-sdk', 'codex']).nullable().optional(),
   })
 )
 

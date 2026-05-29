@@ -1,4 +1,5 @@
 import type { ProviderName, ProviderReasoningEffort, ProviderServiceTier } from '#agent/providers/types'
+import type { ExecutionEngine } from 'shared/execution-config'
 import LlmDefaultConfigService, { resolveEffectiveLlmConfig } from '#services/llm_default_config_service'
 import UserConfig from '#models/user_config'
 
@@ -8,6 +9,8 @@ export interface GlobalUserConfig {
   llmModel?: string | null
   reasoningEffort?: ProviderReasoningEffort | null
   llmServiceTier?: ProviderServiceTier | null
+  /** Selected agent execution engine (overrides the EXECUTION_ENGINE env per user). */
+  executionEngine?: ExecutionEngine | null
 }
 
 const DEFAULTS: GlobalUserConfig = {}
