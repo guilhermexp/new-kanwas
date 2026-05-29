@@ -14,7 +14,6 @@ import { CanvasTree, type CanvasTreeHandle } from './CanvasTree'
 import { DocumentList } from './DocumentList'
 import { ConnectionsFooter } from './ConnectionsFooter'
 import { SkillsFooter } from './SkillsFooter'
-import { SlackFooter } from './SlackFooter'
 import { CliFooter } from './CliFooter'
 
 interface ExplorerProps {
@@ -229,7 +228,6 @@ export function Explorer({
 
         <ConnectionsFooter connectedCount={connectedCount} onClick={() => openConnectionsModal()} />
         <CliFooter />
-        <SlackFooter />
       </div>
 
       <SkillsLibrary isOpen={showSkillsModal} onClose={() => setShowSkillsModal(false)} />
