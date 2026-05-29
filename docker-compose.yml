@@ -67,6 +67,14 @@ services:
       - HOST=0.0.0.0
     extra_hosts:
       - 'localhost:host-gateway'
+    # CLI execution engines (claude-sdk/codex) authenticate with the host's CLI
+    # subscription logins. Until UI-driven auth exists, mount the host tokens:
+    #   - codex reads ~/.codex/auth.json (copied into an isolated CODEX_HOME)
+    #   - claude-sdk reads ~/.claude credentials
+    # Stopgap only — this exposes the host login state to the container.
+    volumes:
+      - ${HOME}/.codex:/root/.codex:ro
+      - ${HOME}/.claude:/root/.claude
     depends_on:
       postgres:
         condition: service_healthy

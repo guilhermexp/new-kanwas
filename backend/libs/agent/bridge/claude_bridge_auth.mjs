@@ -18,11 +18,16 @@ export const STRIPPED_AUTH_ENV_VARS = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKE
  * Strips API-key auth vars so the SDK uses the Claude Code subscription, and
  * tags the client app. Does not mutate the input.
  *
+ * IS_SANDBOX=1 marks this as a controlled automation context. Claude Code
+ * refuses `--dangerously-skip-permissions` (used by the bridge's bypass mode)
+ * when running as root unless this is set — required when the backend runs as
+ * root inside a container. Harmless when running as a normal host user.
+ *
  * @param {Record<string, string | undefined>} sourceEnv
  * @returns {Record<string, string | undefined>}
  */
 export function sanitizeBridgeEnv(sourceEnv) {
-  const env = { ...sourceEnv, CLAUDE_AGENT_SDK_CLIENT_APP: 'kanwas/1.0' }
+  const env = { ...sourceEnv, CLAUDE_AGENT_SDK_CLIENT_APP: 'kanwas/1.0', IS_SANDBOX: '1' }
   for (const key of STRIPPED_AUTH_ENV_VARS) {
     delete env[key]
   }

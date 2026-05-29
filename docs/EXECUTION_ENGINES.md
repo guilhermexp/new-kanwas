@@ -17,20 +17,35 @@ resolved by `shared/src/execution-config.ts`.
 > supported way to run the agent against a developer's Claude/Codex
 > subscription. Do not reintroduce API-key auth into these engines.
 
-## Hard requirement: the backend must run on the host for CLI engines
+## Running the CLI engines: host or Docker
 
-`claude-sdk` and `codex` spawn local CLI processes that read host credentials:
+`claude-sdk` and `codex` spawn local CLI processes that need (a) the CLI binary
+and (b) the subscription login. Both run modes are supported:
 
-- `claude-sdk` → the `claude` binary on `PATH` + `~/.claude` login.
-- `codex` → the `codex` binary on `PATH` + `~/.codex/auth.json` login.
+### On the host
 
-A Linux backend **container** has neither the macOS binaries nor the host login,
-so these engines only work when the backend runs **directly on the host**
-(`cd backend && pnpm dev`). Postgres/Redis/yjs can stay in Docker — their ports
-are exposed and `backend/.env` already points at them (`localhost:5433`, etc.).
+`cd backend && pnpm dev`. The binaries (`claude` via the SDK, `codex` on PATH)
+and logins (`~/.claude`, `~/.codex`) are already present. Postgres/Redis/yjs can
+stay in Docker — their ports are exposed and `backend/.env` points at them
+(`localhost:5433`, etc.).
+
+### In Docker (backend container)
+
+`backend/Dockerfile.dev` installs `@openai/codex` and the Linux `claude` binary
+ships with `@anthropic-ai/claude-agent-sdk`, so both CLIs are in the image. The
+host logins are mounted as volumes in `docker-compose.yml` (stopgap until
+UI-driven auth exists):
+
+```yaml
+volumes:
+  - ${HOME}/.codex:/root/.codex:ro
+  - ${HOME}/.claude:/root/.claude
+```
+
+The container also builds `execenv`, which the host sandbox spawns.
 
 `SANDBOX_PROVIDER=host` is required for both CLI engines so the sandbox cwd is a
-real host path.
+real path (the container itself, in Docker mode).
 
 ## Environment variables
 
@@ -83,6 +98,11 @@ the isolated home.
 - **Swallowed SDK errors:** when a turn fails the SDK often reports
   `subtype: "success"` with the real reason in `result` (e.g. "Invalid API
   key"). `resolveSdkErrorMessage` surfaces that instead of a generic message.
+- **claude-sdk as root (Docker):** Claude Code refuses
+  `--dangerously-skip-permissions` (used by the bridge's bypass mode) when
+  running as root unless `IS_SANDBOX=1` is set. `sanitizeBridgeEnv` sets it, so
+  the engine works in the root backend container; without it the claude process
+  exits with code 1.
 - **Restart on `.env` change:** HMR does not reload env vars. Changing
   `EXECUTION_ENGINE` / `CLAUDE_SDK_MODEL` / `CODEX_*` requires a backend restart.
 - **One server only:** killing just the `:3333` listener leaves the

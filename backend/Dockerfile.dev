@@ -5,6 +5,12 @@ FROM node:22-slim
 RUN apt-get update && apt-get install -y git openssh-client && rm -rf /var/lib/apt/lists/* && \
     corepack enable && corepack prepare pnpm@9 --activate
 
+# CLI execution engines. codex ships its Linux binary via npm; the claude CLI is
+# bundled with @anthropic-ai/claude-agent-sdk (installed per-platform by pnpm),
+# so only codex needs a global install here. Auth is provided at runtime by
+# mounting the host's ~/.codex and ~/.claude logins (see docker-compose.yml).
+RUN npm install -g @openai/codex@0.134.0
+
 WORKDIR /app
 
 # Workspace manifests + patches so pnpm can resolve the locked graph
@@ -12,13 +18,17 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc* ./
 COPY patches/ ./patches/
 COPY shared/package.json ./shared/
 COPY backend/package.json ./backend/
+COPY execenv/package.json ./execenv/
 
-# Install backend + its workspace deps (shared) using the frozen lockfile
-RUN HUSKY=0 pnpm install --frozen-lockfile --filter backend...
+# Install backend + execenv and their workspace deps (shared) from the lockfile.
+# execenv is spawned by the host sandbox (SANDBOX_PROVIDER=host) used by the
+# claude-sdk/codex engines, so it must be present and built in the image.
+RUN HUSKY=0 pnpm install --frozen-lockfile --filter backend... --filter @kanwas/execenv...
 
-# Build shared so backend can import from shared/dist at runtime
+# Build shared first (execenv and backend import from shared/dist), then execenv
 COPY shared ./shared
-RUN pnpm --filter shared build
+COPY execenv ./execenv
+RUN pnpm --filter shared build && pnpm --filter @kanwas/execenv build
 
 # Copy backend source
 COPY backend ./backend

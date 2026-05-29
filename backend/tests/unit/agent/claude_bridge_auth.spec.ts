@@ -26,6 +26,10 @@ test.group('claude bridge auth — sanitizeBridgeEnv', () => {
     assert.equal(env.HOME, '/home/u')
   })
 
+  test('sets IS_SANDBOX so claude allows bypass mode when running as root in a container', ({ assert }) => {
+    assert.equal(sanitizeBridgeEnv({}).IS_SANDBOX, '1')
+  })
+
   test('does not mutate the source env', ({ assert }) => {
     const source = { ANTHROPIC_API_KEY: 'sk-ant-placeholder', PATH: '/usr/bin' }
     sanitizeBridgeEnv(source)
