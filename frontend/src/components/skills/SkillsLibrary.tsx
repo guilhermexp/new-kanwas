@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   useSkills,
   useToggleSkill,
@@ -10,11 +11,19 @@ import {
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { parseSkillMd } from 'shared/skills'
-import { CATEGORY_META, CATEGORY_ORDER, getSkillCategory, type SkillCategory } from './skill-utils'
+import { CATEGORY_ORDER, getSkillCategory, type SkillCategory } from './skill-utils'
 import type { Skill } from '@/api/skills'
 
 // Right panel mode: 'view' | 'edit' | 'create'
 type RightPanelMode = 'view' | 'edit' | 'create'
+
+// Maps skill categories to their i18n label keys.
+const CATEGORY_I18N_KEY: Record<SkillCategory, string> = {
+  craft: 'skills.catCraft',
+  framework: 'skills.catFramework',
+  workflow: 'skills.catWorkflow',
+  custom: 'skills.catCustom',
+}
 
 // Draft skill for duplicating without saving immediately
 interface DraftSkill {
@@ -154,6 +163,7 @@ interface SkillsLibraryProps {
 }
 
 export function SkillsLibrary({ isOpen, onClose }: SkillsLibraryProps) {
+  const { t } = useTranslation()
   const { data: skills, isLoading } = useSkills()
   const toggleSkill = useToggleSkill()
   const deleteSkill = useDeleteSkill()
@@ -462,15 +472,15 @@ export function SkillsLibrary({ isOpen, onClose }: SkillsLibraryProps) {
   }
 
   const filtersRow1: { key: FilterType; label: string; count?: number; icon?: string }[] = [
-    { key: 'featured', label: 'Featured', count: featuredSkills.length, icon: 'fa-star' },
-    { key: 'all', label: 'All', count: totalCount },
-    { key: 'enabled', label: 'Enabled', count: enabledCount },
+    { key: 'featured', label: t('skills.filterFeatured'), count: featuredSkills.length, icon: 'fa-star' },
+    { key: 'all', label: t('skills.filterAll'), count: totalCount },
+    { key: 'enabled', label: t('skills.filterEnabled'), count: enabledCount },
   ]
 
   const filtersRow2: { key: FilterType; label: string; count?: number; icon?: string }[] = CATEGORY_ORDER.map(
     (cat) => ({
       key: cat as FilterType,
-      label: CATEGORY_META[cat].label,
+      label: t(CATEGORY_I18N_KEY[cat]),
       count: categoryCounts[cat],
     })
   )
@@ -483,10 +493,10 @@ export function SkillsLibrary({ isOpen, onClose }: SkillsLibraryProps) {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <i className="fa-solid fa-bolt text-foreground-muted" />
-              <h1 className="text-lg font-semibold text-foreground">Skills</h1>
+              <h1 className="text-lg font-semibold text-foreground">{t('skills.title')}</h1>
             </div>
             <span className="text-sm text-foreground-muted/60">—</span>
-            <span className="text-sm text-foreground-muted/60">Extend the agent with specialized behaviors</span>
+            <span className="text-sm text-foreground-muted/60">{t('skills.subtitle')}</span>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -495,9 +505,9 @@ export function SkillsLibrary({ isOpen, onClose }: SkillsLibraryProps) {
               icon="fa-solid fa-plus"
               disabled={rightPanelMode !== 'view'}
             >
-              Create
+              {t('skills.create')}
             </Button>
-            <Button size="icon" variant="ghost" onClick={onClose} aria-label="Close" className="w-10 h-10">
+            <Button size="icon" variant="ghost" onClick={onClose} aria-label={t('common.close')} className="w-10 h-10">
               <i className="fa-solid fa-xmark text-foreground-muted text-lg" />
             </Button>
           </div>
@@ -514,7 +524,7 @@ export function SkillsLibrary({ isOpen, onClose }: SkillsLibraryProps) {
                 <i className="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-foreground-muted text-sm" />
                 <input
                   type="text"
-                  placeholder="Search skills..."
+                  placeholder={t('skills.searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-4 py-2.5 text-sm rounded-md bg-block-highlight/50 border border-outline focus:border-foreground/30 focus:outline-none text-foreground placeholder:text-foreground-muted"
@@ -588,12 +598,12 @@ export function SkillsLibrary({ isOpen, onClose }: SkillsLibraryProps) {
                   {searchQuery ? (
                     <>
                       <i className="fa-solid fa-search text-3xl mb-3 opacity-50" />
-                      <p className="text-sm">No skills match "{searchQuery}"</p>
+                      <p className="text-sm">{t('skills.noMatch', { query: searchQuery })}</p>
                     </>
                   ) : (
                     <>
                       <i className="fa-solid fa-bolt text-3xl mb-3 opacity-50" />
-                      <p className="text-sm">No skills in this category</p>
+                      <p className="text-sm">{t('skills.noneInCategory')}</p>
                     </>
                   )}
                 </div>
@@ -654,7 +664,7 @@ export function SkillsLibrary({ isOpen, onClose }: SkillsLibraryProps) {
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-foreground-muted p-6">
                 <i className="fa-solid fa-hand-pointer text-3xl mb-3 opacity-30" />
-                <p className="text-sm text-center">Select a skill to view details</p>
+                <p className="text-sm text-center">{t('skills.selectToView')}</p>
               </div>
             )}
           </div>
@@ -676,6 +686,7 @@ interface SkillCardProps {
 }
 
 function SkillListRow({ skill, isSelected, isFeatured, isToggling, isShadowed, onSelect, onToggle }: SkillCardProps) {
+  const { t } = useTranslation()
   const category = getSkillCategory(skill)
   const title = getSkillTitle(skill)
   const briefDescription = getSkillBriefDescription(skill)
@@ -702,7 +713,7 @@ function SkillListRow({ skill, isSelected, isFeatured, isToggling, isShadowed, o
           {isShadowed && (
             <i
               className="fa-solid fa-triangle-exclamation text-amber-400 text-[12px]"
-              title="Shadowed by custom skill"
+              title={t('skills.shadowedTitle')}
             />
           )}
         </div>
@@ -722,7 +733,7 @@ function SkillListRow({ skill, isSelected, isFeatured, isToggling, isShadowed, o
           onToggle(!skill.enabled)
         }}
         disabled={isToggling}
-        title={isShadowed && !skill.enabled ? 'Cannot enable: shadowed by custom skill' : undefined}
+        title={isShadowed && !skill.enabled ? t('skills.cannotEnableShadowed') : undefined}
         className={`
           w-7 h-7 rounded-md flex items-center justify-center transition-all cursor-pointer flex-shrink-0 mt-0.5
           border bg-foreground-muted/5 border-foreground-muted/20 hover:border-foreground-muted/30
@@ -730,7 +741,7 @@ function SkillListRow({ skill, isSelected, isFeatured, isToggling, isShadowed, o
           ${isToggling ? 'opacity-50' : ''}
           ${isShadowed && !skill.enabled ? 'opacity-30 cursor-not-allowed' : ''}
         `}
-        aria-label={skill.enabled ? 'Disable' : 'Enable'}
+        aria-label={skill.enabled ? t('skills.disable') : t('skills.enable')}
       >
         <i className={`fa-solid ${skill.enabled ? 'fa-check' : 'fa-xmark'} text-[12px]`} />
       </button>
@@ -760,6 +771,7 @@ function SkillDetailPanel({
   isDeleting,
   isDuplicating,
 }: SkillDetailPanelProps) {
+  const { t } = useTranslation()
   const category = getSkillCategory(skill)
   const isFeatured = isFeaturedSkill(skill)
   const title = getSkillTitle(skill)
@@ -792,9 +804,7 @@ function SkillDetailPanel({
       {isShadowed && (
         <div className="px-4 py-2.5 bg-amber-500/10 flex items-center gap-2 text-amber-400 text-sm">
           <i className={`fa-solid fa-triangle-exclamation ${isGlowing ? 'animate-warning-glow' : ''}`} />
-          <span className={isGlowing ? 'animate-warning-glow' : ''}>
-            This skill is shadowed by a custom skill with the same name
-          </span>
+          <span className={isGlowing ? 'animate-warning-glow' : ''}>{t('skills.shadowedWarning')}</span>
         </div>
       )}
 
@@ -822,12 +832,12 @@ function SkillDetailPanel({
       <div className="px-6 py-4 border-t border-outline">
         {skill.isSystem ? (
           <Button variant="secondary" onClick={onEdit} icon="fa-solid fa-copy" className="w-full">
-            Duplicate and Edit
+            {t('skills.duplicateAndEdit')}
           </Button>
         ) : (
           <div className="flex gap-2">
             <Button variant="secondary" onClick={onEdit} icon="fa-solid fa-pen" className="flex-1 basis-0">
-              Edit
+              {t('skills.edit')}
             </Button>
             <Button
               variant="secondary"
@@ -837,7 +847,7 @@ function SkillDetailPanel({
               icon={isDuplicating ? undefined : 'fa-solid fa-copy'}
               className="flex-1 basis-0"
             >
-              Duplicate
+              {t('skills.duplicate')}
             </Button>
             <Button
               variant={confirmDelete ? 'danger' : 'secondary'}
@@ -847,7 +857,7 @@ function SkillDetailPanel({
               icon={isDeleting ? undefined : 'fa-solid fa-trash'}
               className="flex-1 basis-0"
             >
-              {isDeleting ? 'Deleting...' : confirmDelete ? 'Confirm?' : 'Delete'}
+              {isDeleting ? t('skills.deleting') : confirmDelete ? t('skills.confirm') : t('skills.delete')}
             </Button>
           </div>
         )}
@@ -871,6 +881,7 @@ interface SkillEditPanelProps {
 }
 
 function SkillEditPanel({ skill, draftSkill, onSave, onCancel, isSaving }: SkillEditPanelProps) {
+  const { t } = useTranslation()
   const isEditing = !!skill
   const isDuplicatingSystem = !skill && !!draftSkill
   const [mode, setMode] = useState<'form' | 'import'>('form')
@@ -898,22 +909,22 @@ function SkillEditPanel({ skill, draftSkill, onSave, onCancel, isSaving }: Skill
   }, [skill, draftSkill])
 
   const validateName = (value: string) => {
-    if (!value.trim()) return 'Name is required'
+    if (!value.trim()) return t('skills.nameRequired')
     if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(value)) {
-      return 'Must be lowercase with hyphens (e.g., my-skill)'
+      return t('skills.nameFormat')
     }
-    if (value.length > 64) return 'Must be 64 characters or less'
+    if (value.length > 64) return t('skills.nameLength')
     return undefined
   }
 
   const validateDescription = (value: string) => {
-    if (!value.trim()) return 'Description is required'
-    if (value.length > 1024) return 'Must be 1024 characters or less'
+    if (!value.trim()) return t('skills.descRequired')
+    if (value.length > 1024) return t('skills.descLength')
     return undefined
   }
 
   const validateBody = (value: string) => {
-    if (!value.trim()) return 'Instructions are required'
+    if (!value.trim()) return t('skills.instructionsRequired')
     return undefined
   }
 
@@ -948,7 +959,7 @@ function SkillEditPanel({ skill, draftSkill, onSave, onCancel, isSaving }: Skill
 
   const handleImportParse = useCallback(() => {
     if (!importContent.trim()) {
-      setImportError('Paste SKILL.md content above')
+      setImportError(t('skills.pasteSkillMd'))
       return
     }
 
@@ -974,15 +985,15 @@ function SkillEditPanel({ skill, draftSkill, onSave, onCancel, isSaving }: Skill
 
   // Get header text based on mode
   const getHeaderTitle = () => {
-    if (isEditing) return 'Edit Skill'
-    if (isDuplicatingSystem) return 'Duplicate Skill'
-    return 'Create Skill'
+    if (isEditing) return t('skills.editSkill')
+    if (isDuplicatingSystem) return t('skills.duplicateSkill')
+    return t('skills.createSkill')
   }
 
   const getHeaderSubtitle = () => {
-    if (isEditing) return 'Modify the skill configuration'
-    if (isDuplicatingSystem) return `Creating a copy of "${draftSkill?.sourceSkill.name}"`
-    return 'Create a new custom skill'
+    if (isEditing) return t('skills.subtitleEdit')
+    if (isDuplicatingSystem) return t('skills.subtitleDuplicate', { name: draftSkill?.sourceSkill.name })
+    return t('skills.subtitleCreate')
   }
 
   return (
@@ -1005,7 +1016,7 @@ function SkillEditPanel({ skill, draftSkill, onSave, onCancel, isSaving }: Skill
                   : 'text-foreground-muted hover:text-foreground hover:bg-block-highlight'
               }`}
             >
-              Form
+              {t('skills.form')}
             </button>
             <button
               onClick={() => setMode('import')}
@@ -1015,7 +1026,7 @@ function SkillEditPanel({ skill, draftSkill, onSave, onCancel, isSaving }: Skill
                   : 'text-foreground-muted hover:text-foreground hover:bg-block-highlight'
               }`}
             >
-              Import SKILL.md
+              {t('skills.importSkillMd')}
             </button>
           </div>
         )}
@@ -1028,7 +1039,7 @@ function SkillEditPanel({ skill, draftSkill, onSave, onCancel, isSaving }: Skill
           <div className="px-6 pt-5 space-y-4 flex-shrink-0">
             {/* Name field */}
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">Skill Name</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">{t('skills.skillName')}</label>
               <input
                 type="text"
                 value={name}
@@ -1036,36 +1047,37 @@ function SkillEditPanel({ skill, draftSkill, onSave, onCancel, isSaving }: Skill
                   setName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
                 }}
                 className="w-full px-3 py-2 text-sm rounded-md bg-block-highlight/50 border border-outline focus:border-foreground/30 focus:outline-none text-foreground font-mono"
-                placeholder="my-skill-name"
+                placeholder={t('skills.skillNamePlaceholder')}
               />
               <p className="mt-1 text-xs text-foreground-muted">
-                Invoke with <span className="font-mono text-foreground-muted/70">/{name || 'skill-name'}</span>
+                {t('skills.invokeWith')}{' '}
+                <span className="font-mono text-foreground-muted/70">/{name || 'skill-name'}</span>
               </p>
             </div>
 
             {/* Description field - 2 lines */}
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">Description</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">{t('skills.description')}</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
                 className="w-full px-3 py-2 text-sm rounded-md bg-block-highlight/50 border border-outline focus:border-foreground/30 focus:outline-none text-foreground resize-none"
-                placeholder="A brief description of what this skill does"
+                placeholder={t('skills.descriptionPlaceholder')}
               />
             </div>
           </div>
 
           {/* Instructions field - takes remaining space */}
           <div className="flex-1 flex flex-col min-h-0 px-6 py-4">
-            <label className="block text-sm font-medium text-foreground mb-1.5 flex-shrink-0">Instructions</label>
+            <label className="block text-sm font-medium text-foreground mb-1.5 flex-shrink-0">
+              {t('skills.instructions')}
+            </label>
             <textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
               className="flex-1 w-full px-3 py-2 text-sm rounded-md bg-block-highlight/50 border border-outline focus:border-foreground/30 focus:outline-none text-foreground font-mono resize-none leading-relaxed"
-              placeholder="# My Skill
-
-Instructions for the AI when this skill is activated..."
+              placeholder={t('skills.instructionsPlaceholder')}
             />
           </div>
 
@@ -1081,7 +1093,7 @@ Instructions for the AI when this skill is activated..."
               )}
               {!linterErrors && <div className="flex-1" />}
               <Button type="button" variant="secondary" onClick={onCancel}>
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button
                 type="submit"
@@ -1089,7 +1101,7 @@ Instructions for the AI when this skill is activated..."
                 disabled={isSaving || !allFieldsHaveContent || linterErrors !== null}
                 isLoading={isSaving}
               >
-                {isSaving ? 'Saving...' : 'Save'}
+                {isSaving ? t('common.saving') : t('common.save')}
               </Button>
             </div>
           </div>
@@ -1098,7 +1110,7 @@ Instructions for the AI when this skill is activated..."
         /* Import mode */
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto px-6 py-5">
-            <p className="text-sm text-foreground-muted mb-3">Paste the contents of a SKILL.md file to import it.</p>
+            <p className="text-sm text-foreground-muted mb-3">{t('skills.importIntro')}</p>
             <textarea
               value={importContent}
               onChange={(e) => {
@@ -1126,7 +1138,7 @@ Instructions for the AI...`}
           {/* Footer */}
           <div className="px-6 py-4 border-t border-outline flex gap-3 justify-end">
             <Button type="button" variant="secondary" onClick={onCancel}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               type="button"
@@ -1135,7 +1147,7 @@ Instructions for the AI...`}
               disabled={!importContent.trim()}
               icon="fa-solid fa-file-import"
             >
-              Parse & Continue
+              {t('skills.parseContinue')}
             </Button>
           </div>
         </div>

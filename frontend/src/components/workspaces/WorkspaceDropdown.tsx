@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
   useWorkspace,
@@ -23,6 +24,7 @@ interface WorkspaceDropdownProps {
 }
 
 export function WorkspaceDropdown({ workspaceId, workspaces, isLoading }: WorkspaceDropdownProps) {
+  const { t } = useTranslation()
   const { data: workspace } = useWorkspace(workspaceId)
   const { data: organization } = useOrganization(workspaceId)
   const updateMutation = useUpdateWorkspace()
@@ -107,7 +109,7 @@ export function WorkspaceDropdown({ workspaceId, workspaces, isLoading }: Worksp
             value={workspace.name}
             onSave={handleRename}
             onCancel={() => setIsEditing(false)}
-            placeholder="Workspace name..."
+            placeholder={t('workspace.namePlaceholder')}
           />
         ) : (
           <DropdownMenu.Root open={isOpen} onOpenChange={setIsOpen} modal={false}>
@@ -151,7 +153,7 @@ export function WorkspaceDropdown({ workspaceId, workspaces, isLoading }: Worksp
                       onSelect={handleCreateWorkspace}
                     >
                       <i className="fa-solid fa-plus text-[12px]" />
-                      <span>New Workspace</span>
+                      <span>{t('workspace.newWorkspace')}</span>
                     </DropdownMenu.Item>
 
                     {canManageWorkspace && (
@@ -163,7 +165,7 @@ export function WorkspaceDropdown({ workspaceId, workspaces, isLoading }: Worksp
                           onSelect={handleDuplicate}
                         >
                           <i className="fa-solid fa-copy text-[12px]" />
-                          <span>Duplicate</span>
+                          <span>{t('workspace.duplicate')}</span>
                         </DropdownMenu.Item>
 
                         <DropdownMenu.Item
@@ -174,7 +176,7 @@ export function WorkspaceDropdown({ workspaceId, workspaces, isLoading }: Worksp
                           }}
                         >
                           <i className="fa-solid fa-pen text-[12px]" />
-                          <span>Rename</span>
+                          <span>{t('workspace.rename')}</span>
                         </DropdownMenu.Item>
                       </>
                     )}
@@ -187,7 +189,7 @@ export function WorkspaceDropdown({ workspaceId, workspaces, isLoading }: Worksp
                       }}
                     >
                       <i className="fa-solid fa-trash text-[12px]" />
-                      <span>Delete</span>
+                      <span>{t('workspace.delete')}</span>
                     </DropdownMenu.Item>
 
                     <DropdownMenu.Separator className="h-px bg-outline my-1" />
@@ -202,7 +204,7 @@ export function WorkspaceDropdown({ workspaceId, workspaces, isLoading }: Worksp
                   }}
                 >
                   <i className="fa-solid fa-users text-[12px]" />
-                  <span>Team settings</span>
+                  <span>{t('workspace.teamSettings')}</span>
                 </DropdownMenu.Item>
 
                 <DropdownMenu.Separator className="h-px bg-outline my-1" />
@@ -212,7 +214,7 @@ export function WorkspaceDropdown({ workspaceId, workspaces, isLoading }: Worksp
                   onSelect={() => logout()}
                 >
                   <i className="fa-solid fa-right-from-bracket text-[12px]" />
-                  <span>Log out</span>
+                  <span>{t('workspace.logout')}</span>
                 </DropdownMenu.Item>
               </DropdownMenu.Content>
             </DropdownMenu.Portal>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { ToolkitStatus } from '@/api/connections'
 import { POPULAR_CATEGORY, formatCategoryLabel } from './catalogPresentation'
 import { buildCategoryFilterOptions } from './categoryFilterOptions'
@@ -33,6 +34,7 @@ export function ConnectionsCatalogPanel({
   isConnectionAttemptInProgress,
   initialSearch,
 }: ConnectionsCatalogPanelProps) {
+  const { t } = useTranslation()
   const [searchQuery, setSearchQuery] = useState(initialSearch ?? '')
   const [connectionFilter, setConnectionFilter] = useState<ConnectionFilter>('all')
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>(
@@ -87,7 +89,7 @@ export function ConnectionsCatalogPanel({
     }
   }, [categoryCounters, hasActiveSearch, selectedCategory])
 
-  const allCategoriesLabel = formatCategoryLabel('All categories', 'upper')
+  const allCategoriesLabel = formatCategoryLabel(t('connections.allCategories'), 'upper')
   const allCategoriesCount = searchAndStatusFilteredConnections.length
   const categoryOptions = useMemo(
     () => buildCategoryFilterOptions(categoryCounters, categoryVisualBySlug),

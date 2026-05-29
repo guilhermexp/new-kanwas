@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { ToolkitStatus } from '@/api/connections'
 import {
   POPULAR_CATEGORY,
@@ -161,6 +162,7 @@ export function useConnectionsCatalog({
   connectionFilter,
   selectedCategory,
 }: UseConnectionsCatalogOptions) {
+  const { t } = useTranslation()
   const allConnections = useMemo(() => {
     if (!connections) {
       return []
@@ -286,11 +288,21 @@ export function useConnectionsCatalog({
 
   const statusFilters: StatusFilterOption[] = useMemo(
     () => [
-      { value: 'all', label: 'All', count: totalCount },
-      { value: 'installed', label: 'Installed', count: installedCount, dotClassName: 'bg-status-success' },
-      { value: 'not_installed', label: 'Not installed', count: notInstalledCount, dotClassName: 'bg-orange-300' },
+      { value: 'all', label: t('connections.filterAll'), count: totalCount },
+      {
+        value: 'installed',
+        label: t('connections.filterInstalled'),
+        count: installedCount,
+        dotClassName: 'bg-status-success',
+      },
+      {
+        value: 'not_installed',
+        label: t('connections.filterNotInstalled'),
+        count: notInstalledCount,
+        dotClassName: 'bg-orange-300',
+      },
     ],
-    [installedCount, notInstalledCount, totalCount]
+    [installedCount, notInstalledCount, totalCount, t]
   )
 
   return {

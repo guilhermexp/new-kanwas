@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { ToolkitStatus } from '@/api/connections'
 import { ConnectionItem } from './ConnectionItem'
 import { useConnectionsResultsVirtualizer } from './useConnectionsResultsVirtualizer'
@@ -26,6 +27,7 @@ export function ConnectionsResultsPanel({
   onConnectToolkit,
   onDisconnect,
 }: ConnectionsResultsPanelProps) {
+  const { t } = useTranslation()
   // Find the first toolkit whose display name starts with the highlight search term
   const highlightedToolkitId = useMemo(() => {
     if (!highlightToolkit || filteredConnections.length === 0) return null
@@ -114,7 +116,7 @@ export function ConnectionsResultsPanel({
           ) : (
             <div className="flex h-full min-h-[320px] flex-col items-center justify-center py-12 text-foreground-muted">
               <i className="fa-solid fa-plug text-3xl mb-3 opacity-50" />
-              <p className="text-sm">No matching integrations</p>
+              <p className="text-sm">{t('connections.noMatching')}</p>
             </div>
           )}
         </div>

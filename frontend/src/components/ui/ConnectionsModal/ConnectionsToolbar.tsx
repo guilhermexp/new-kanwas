@@ -1,4 +1,5 @@
 import type { ChangeEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ConnectionsCategoryFilterButton } from './ConnectionsCategoryFilterButton'
 import type { CategoryFilterOption } from './categoryFilterOptions'
 import type { CategoryFilter, ConnectionFilter, StatusFilterOption } from './useConnectionsCatalog'
@@ -30,6 +31,7 @@ export function ConnectionsToolbar({
   onConnectionFilterChange,
   onSelectCategory,
 }: ConnectionsToolbarProps) {
+  const { t } = useTranslation()
   const isAllCategorySelected = activeCategory === 'all'
 
   const handleSearchInputChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -45,7 +47,7 @@ export function ConnectionsToolbar({
             type="text"
             value={searchQuery}
             onChange={handleSearchInputChange}
-            placeholder="Search by name, description, or category"
+            placeholder={t('connections.searchPlaceholder')}
             className="w-full bg-editor border border-outline rounded-md text-sm text-foreground pl-8 pr-10 py-2.5 focus:outline-none focus:ring-1 focus:ring-primary"
           />
 
@@ -53,7 +55,7 @@ export function ConnectionsToolbar({
             <button
               type="button"
               onClick={onClearSearch}
-              aria-label="Clear search"
+              aria-label={t('connections.clearSearch')}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded-sm text-foreground-muted transition-colors hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             >
               <i className="fa-solid fa-xmark text-[12px]" />

@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import i18n from '@/i18n'
 import type { WorkspaceSuggestedTask } from '@/api/suggestedTasks'
 import type { TaskListItem } from '@/api/tasks'
 import type { WorkspaceOnboardingStatus } from '@/api/workspaces'
 import thinkingAnimation from '@/assets/thinking-animation.png'
 import tipImage from '@/assets/tip.png'
-import { tips } from '@/constants/tips'
 import { useWorkspaceSnapshot } from '@/providers/workspace'
 import { resolveCanvasPath, findCanvasByPath, findCanvasById } from '@/lib/workspaceUtils'
 import type { CanvasItem } from 'shared'
@@ -86,6 +86,14 @@ function formatRelativeTime(isoTimestamp: string): string {
 type TimeBucket = 'Now' | 'Today' | 'Yesterday' | 'Last Week' | 'Older'
 
 const TIME_BUCKET_ORDER: TimeBucket[] = ['Now', 'Today', 'Yesterday', 'Last Week', 'Older']
+
+const TIME_BUCKET_I18N_KEY: Record<TimeBucket, string> = {
+  'Now': 'chat.timeNow',
+  'Today': 'chat.timeToday',
+  'Yesterday': 'chat.timeYesterday',
+  'Last Week': 'chat.timeLastWeek',
+  'Older': 'chat.timeOlder',
+}
 
 function getTimeBucket(isoTimestamp: string): TimeBucket {
   const now = new Date()
@@ -316,6 +324,7 @@ function SuggestedTaskLoadingRows() {
 }
 
 function OnboardingBanner({ isStarting, onStart }: { isStarting: boolean; onStart?: () => void }) {
+  const { t } = useTranslation()
   return (
     <div className="px-[18px] py-3">
       <div className="relative rounded-[20px] p-[1.5px] overflow-hidden">
@@ -327,11 +336,8 @@ function OnboardingBanner({ isStarting, onStart }: { isStarting: boolean; onStar
           }}
         />
         <div className="relative rounded-[18.5px] bg-chat-clear p-4">
-          <p className="text-[18px] leading-[22px] font-bold text-foreground">👋 Let's make this workspace yours</p>
-          <p className="mt-[10px] text-[14px] leading-[22px] font-medium text-foreground">
-            Your context is why Kanwas is a powerful space to think in. Let's have a quick chat so I can get to know
-            you.
-          </p>
+          <p className="text-[18px] leading-[22px] font-bold text-foreground">{t('chat.onboardingTitle')}</p>
+          <p className="mt-[10px] text-[14px] leading-[22px] font-medium text-foreground">{t('chat.onboardingBody')}</p>
           <button
             type="button"
             disabled={isStarting || !onStart}
@@ -339,7 +345,7 @@ function OnboardingBanner({ isStarting, onStart }: { isStarting: boolean; onStar
             className="mt-[10px] h-[34px] px-4 rounded-2xl border border-[#656565] text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-focused-content disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             style={{ background: 'linear-gradient(180deg, #393939 0%, #1D1D1D 100%)' }}
           >
-            {isStarting ? 'Starting...' : 'Make it yours'}
+            {isStarting ? t('chat.starting') : t('chat.makeItYours')}
           </button>
         </div>
       </div>
@@ -367,15 +373,16 @@ function TaskLoadingRows() {
 }
 
 function TaskErrorState({ onRetry }: { onRetry: () => void }) {
+  const { t } = useTranslation()
   return (
     <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 px-6 text-center">
-      <p className="text-sm text-foreground-muted">Couldn't load tasks.</p>
+      <p className="text-sm text-foreground-muted">{t('chat.couldntLoadTasks')}</p>
       <button
         type="button"
         onClick={onRetry}
         className="rounded-full border border-chat-pill-border bg-chat-clear shadow-chat-pill px-3 py-1.5 text-xs font-medium text-foreground-muted transition-colors hover:text-foreground"
       >
-        Retry
+        {t('common.retry')}
       </button>
     </div>
   )
@@ -421,7 +428,10 @@ export function TaskList({
   onRetry,
 }: TaskListProps) {
   const { t } = useTranslation()
-  const [randomTip] = useState(() => tips[Math.floor(Math.random() * tips.length)])
+  const [randomTip] = useState(() => {
+    const tips = i18n.t('tips', { returnObjects: true }) as string[]
+    return tips[Math.floor(Math.random() * tips.length)]
+  })
 
   const groupedTasks = useMemo(() => groupTasksByTime(tasks), [tasks])
   const firstBucket = useMemo(
@@ -463,7 +473,7 @@ export function TaskList({
 
           {showSuggestedTaskRows && (
             <div className={SECTION_TITLE_CLASS}>
-              <p>Suggested tasks</p>
+              <p>{t('chat.suggestedTasks')}</p>
             </div>
           )}
 
@@ -498,7 +508,7 @@ export function TaskList({
 
             return (
               <div key={bucket}>
-                <TimeGroupHeader label={bucket} isFirst={bucket === firstBucket} />
+                <TimeGroupHeader label={t(TIME_BUCKET_I18N_KEY[bucket])} isFirst={bucket === firstBucket} />
                 {bucketTasks.map((task) => (
                   <TaskRow
                     key={task.taskId}
