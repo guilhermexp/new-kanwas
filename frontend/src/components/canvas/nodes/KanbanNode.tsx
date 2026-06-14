@@ -446,7 +446,7 @@ export default memo(function KanbanNode({ id, data, selected, width, height }: K
                                 <input
                                   value={task.fields?.[field.id] ?? ''}
                                   onChange={(event) => upsertTaskField(column.id, task, field.id, event.target.value)}
-                                  className="w-full rounded border border-outline bg-transparent px-2 py-1 text-xs text-foreground placeholder:text-foreground-muted outline-none"
+                                  className="w-full rounded border border-outline bg-transparent px-2 py-1 text-xs text-foreground placeholder:text-foreground-muted outline-none dark:[color-scheme:dark]"
                                 />
                               ) : (
                                 <input

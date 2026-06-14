@@ -43,7 +43,7 @@ function VideoNodeComponent({ selected, id, data, width, height }: VideoNodeProp
   const { onFocusNode } = data
   const [videoError, setVideoError] = useState(false)
 
-  const { data: signedUrl, isLoading, error } = useSignedUrl(data.storagePath, data.contentHash)
+  const { data: signedUrl, isLoading, error, refetch } = useSignedUrl(data.storagePath, data.contentHash)
 
   const nodeWidth = positiveNumber(width) ?? VIDEO_NODE_LAYOUT.DEFAULT_MEASURED.width
   const nodeHeight = positiveNumber(height) ?? VIDEO_NODE_LAYOUT.DEFAULT_MEASURED.height
@@ -55,7 +55,8 @@ function VideoNodeComponent({ selected, id, data, width, height }: VideoNodeProp
 
   const handleRetry = useCallback(() => {
     setVideoError(false)
-  }, [])
+    void refetch()
+  }, [refetch])
 
   const handleDownload = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
