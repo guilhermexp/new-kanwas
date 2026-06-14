@@ -12,6 +12,7 @@ export type {
   ImageNode,
   FileNode,
   AudioNode,
+  VideoNode,
   LinkNode,
   XyNode,
 } from './types.js'

@@ -8,6 +8,7 @@ import {
   NODE_LAYOUT,
   STICKY_NOTE_NODE_LAYOUT,
   TEXT_NODE_LAYOUT,
+  VIDEO_NODE_LAYOUT,
 } from 'shared/constants'
 import { logMeasurement, shouldLogMeasurement } from '@/lib/measurementDebug'
 
@@ -77,6 +78,8 @@ function getDefaultSectionNodeSize(item: SectionMemberItem): { width: number; he
       return FILE_NODE_LAYOUT.DEFAULT_MEASURED
     case 'audio':
       return AUDIO_NODE_LAYOUT.DEFAULT_MEASURED
+    case 'video':
+      return VIDEO_NODE_LAYOUT.DEFAULT_MEASURED
     case 'link':
       return LINK_NODE_LAYOUT.DEFAULT_MEASURED
     case 'text':
@@ -147,6 +150,7 @@ function getSectionNodeMetrics(item: SectionMemberItem): SectionNodeMetrics | nu
   switch (item.xynode.type) {
     case 'blockNote':
     case 'audio':
+    case 'video':
     case 'link':
       return { ...size, topOffset: 0, bottomTrim: 18 }
     case 'stickyNote':

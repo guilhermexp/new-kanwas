@@ -29,10 +29,6 @@ export const BINARY_FILE_TYPES = {
   yaml: { nodeType: 'file', mimeType: 'application/x-yaml' },
   yml: { nodeType: 'file', mimeType: 'application/x-yaml' },
 
-  // Video
-  mp4: { nodeType: 'file', mimeType: 'video/mp4' },
-  mov: { nodeType: 'file', mimeType: 'video/quicktime' },
-
   // Audio
   mp3: { nodeType: 'audio', mimeType: 'audio/mpeg' },
   wav: { nodeType: 'audio', mimeType: 'audio/wav' },
@@ -41,7 +37,13 @@ export const BINARY_FILE_TYPES = {
   flac: { nodeType: 'audio', mimeType: 'audio/flac' },
   m4a: { nodeType: 'audio', mimeType: 'audio/mp4' },
   opus: { nodeType: 'audio', mimeType: 'audio/opus' },
-  webm: { nodeType: 'audio', mimeType: 'audio/webm' }, // Treating as audio
+
+  // Video
+  mp4: { nodeType: 'video', mimeType: 'video/mp4' },
+  mov: { nodeType: 'video', mimeType: 'video/quicktime' },
+  webm: { nodeType: 'video', mimeType: 'video/webm' },
+  m4v: { nodeType: 'video', mimeType: 'video/x-m4v' },
+  ogv: { nodeType: 'video', mimeType: 'video/ogg' },
 
   // Archives
   zip: { nodeType: 'file', mimeType: 'application/zip' },
@@ -61,5 +63,5 @@ export function getExtensionFromMimeType(mimeType: string): string | null {
 }
 
 export function isBinaryNodeType(nodeType: string): boolean {
-  return nodeType === 'image' || nodeType === 'file' || nodeType === 'audio'
+  return nodeType === 'image' || nodeType === 'file' || nodeType === 'audio' || nodeType === 'video'
 }

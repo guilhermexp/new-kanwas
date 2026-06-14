@@ -172,6 +172,22 @@ export function createFakeOGGBuffer(): Buffer {
 }
 
 // =============================================================================
+// VIDEO BUFFER FACTORIES
+// =============================================================================
+
+/**
+ * Creates a tiny MP4-like buffer with ftyp/moov markers.
+ */
+export function createFakeMP4Buffer(): Buffer {
+  const ftyp = Buffer.from([
+    0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0x00, 0x00, 0x02, 0x00, 0x69, 0x73, 0x6f,
+    0x6d, 0x69, 0x73, 0x6f, 0x32,
+  ])
+  const moov = Buffer.from([0x00, 0x00, 0x00, 0x08, 0x6d, 0x6f, 0x6f, 0x76])
+  return Buffer.concat([ftyp, moov, Buffer.alloc(32)])
+}
+
+// =============================================================================
 // DOCUMENT BUFFER FACTORIES
 // =============================================================================
 

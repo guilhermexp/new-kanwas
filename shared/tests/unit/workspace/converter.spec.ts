@@ -9,6 +9,7 @@ import {
   createBlockNoteNode,
   createImageNode,
   createAudioNode,
+  createVideoNode,
   createFileNode,
   createLinkNode,
 } from '../../helpers/workspace-factory.js'
@@ -921,7 +922,7 @@ Some paragraph text.`
     // ========================================================================
 
     describe('mixed binary node types', () => {
-      it('should handle canvas with image, audio, and file nodes together', async () => {
+      it('should handle canvas with image, audio, video, and file nodes together', async () => {
         const { proxy, yDoc, dispose } = createTestWorkspace()
         disposeCallbacks.push(dispose)
 
@@ -942,27 +943,36 @@ Some paragraph text.`
           size: 3000,
           originalFilename: 'script.pdf',
         })
+        const videoNode = createVideoNode('video-1', 'Demo Reel', {
+          storagePath: 'files/demo.mp4',
+          mimeType: 'video/mp4',
+          size: 4000,
+          originalFilename: 'demo.mp4',
+          contentHash: 'video-hash',
+        })
 
-        proxy.root.items = [createCanvas('canvas-1', 'Media Project', [imageNode, audioNode, fileNode])]
+        proxy.root.items = [createCanvas('canvas-1', 'Media Project', [imageNode, audioNode, videoNode, fileNode])]
 
         const result = await workspaceToFilesystem(proxy, yDoc)
         const canvasFolder = result.children!.find((c) => c.name === 'media-project')
         expect(canvasFolder).toBeDefined()
 
-        // Should have metadata.yaml + 3 binary files
-        expect(canvasFolder!.children).toHaveLength(4)
+        // Should have metadata.yaml + 4 binary files
+        expect(canvasFolder!.children).toHaveLength(5)
 
         expect(canvasFolder!.children!.find((c) => c.name === 'photo.png')).toBeDefined()
         expect(canvasFolder!.children!.find((c) => c.name === 'voiceover.mp3')).toBeDefined()
+        expect(canvasFolder!.children!.find((c) => c.name === 'demo-reel.mp4')).toBeDefined()
         expect(canvasFolder!.children!.find((c) => c.name === 'script.pdf')).toBeDefined()
 
         // Verify metadata includes all nodes
         const metadataFile = canvasFolder!.children!.find((child) => child.name === 'metadata.yaml')
         const metadata = yaml.parse(metadataFile!.data!.toString())
-        expect(metadata.nodes).toHaveLength(3)
+        expect(metadata.nodes).toHaveLength(4)
         expect(metadata.nodes.map((n: { xynode: { type: string } }) => n.xynode.type)).toEqual([
           'image',
           'audio',
+          'video',
           'file',
         ])
       })

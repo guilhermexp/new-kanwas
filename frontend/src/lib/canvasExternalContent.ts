@@ -6,7 +6,12 @@ import {
   isMessyHtmlSource,
 } from '@/lib/paste-utils'
 import { isSafeExternalUrl } from '@/lib/embeds'
-import { SUPPORTED_FILE_EXTENSIONS, isAudioExtension, type SupportedFileExtension } from 'shared/constants'
+import {
+  SUPPORTED_FILE_EXTENSIONS,
+  isAudioExtension,
+  isVideoExtension,
+  type SupportedFileExtension,
+} from 'shared/constants'
 
 export type CanvasBlockNoteImport = {
   kind: 'blockNote'
@@ -18,6 +23,7 @@ export type CanvasBlockNoteImport = {
 export type CanvasNodeImport =
   | { kind: 'image'; file: File }
   | { kind: 'audio'; file: File }
+  | { kind: 'video'; file: File }
   | { kind: 'file'; file: File }
   | { kind: 'link'; url: string }
   | CanvasBlockNoteImport
@@ -56,6 +62,11 @@ function classifyFiles(files: File[]): CanvasNodeImport[] {
 
     if (file.type.startsWith('audio/') || (ext && isAudioExtension(ext))) {
       imports.push({ kind: 'audio', file })
+      continue
+    }
+
+    if (file.type.startsWith('video/') || (ext && isVideoExtension(ext))) {
+      imports.push({ kind: 'video', file })
       continue
     }
 

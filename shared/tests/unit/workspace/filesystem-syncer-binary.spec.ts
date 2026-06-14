@@ -12,11 +12,19 @@ import {
   createFakeMP3Buffer,
   createFakeWAVBuffer,
   createFakeOGGBuffer,
+  createFakeMP4Buffer,
   createFakePDFBuffer,
   createFakeCSVBuffer,
   createFakeTXTBuffer,
 } from '../../helpers/mock-file-handlers.js'
-import type { CanvasItem, NodeItem, ImageNodeData, AudioNodeData, FileNodeData } from '../../../src/types.js'
+import type {
+  CanvasItem,
+  NodeItem,
+  ImageNodeData,
+  AudioNodeData,
+  FileNodeData,
+  VideoNodeData,
+} from '../../../src/types.js'
 import { calculateImageDisplaySize } from '../../../src/constants.js'
 
 // ============================================================================
@@ -866,6 +874,113 @@ describe('FilesystemSyncer - Binary Files', () => {
       expect(setup.uploadCalls[0].canvasId).toBe(canvas.id)
       expect(setup.uploadCalls[0].filename).toBe('upload-test.mp3')
       expect(setup.uploadCalls[0].mimeType).toBe('audio/mpeg')
+    })
+  })
+
+  // ==========================================================================
+  // VIDEO FILE SYNC
+  // ==========================================================================
+
+  describe('Video file sync', () => {
+    it('should create video node from .mp4 file', async () => {
+      const setup = createSyncerWithBinarySupport()
+      disposeCallbacks.push(setup.dispose)
+
+      const canvas = await createTestCanvas(setup, 'Test-Canvas')
+
+      setup.fileMap.set('Test-Canvas/demo.mp4', createFakeMP4Buffer())
+      const result = await setup.syncer.syncChange({
+        type: 'create',
+        path: 'Test-Canvas/demo.mp4',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.action).toBe('created_node')
+      expect(result.nodeId).toBeDefined()
+
+      const node = canvas.items.find((i): i is NodeItem => i.kind === 'node' && i.id === result.nodeId)
+      expect(node).toBeDefined()
+      expect(node!.xynode.type).toBe('video')
+      expect(node!.xynode.initialWidth).toBeDefined()
+      expect(node!.xynode.initialHeight).toBeDefined()
+      expect(setup.uploadCalls[0]?.mimeType).toBe('video/mp4')
+    })
+
+    it('should route .webm files to video handler', async () => {
+      const setup = createSyncerWithBinarySupport()
+      disposeCallbacks.push(setup.dispose)
+
+      await createTestCanvas(setup, 'Test-Canvas')
+
+      setup.fileMap.set('Test-Canvas/demo.webm', createFakeMP4Buffer())
+      const result = await setup.syncer.syncChange({
+        type: 'create',
+        path: 'Test-Canvas/demo.webm',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.action).toBe('created_node')
+      expect(setup.uploadCalls[0]?.mimeType).toBe('video/webm')
+    })
+
+    it('should preserve originalFilename in video node data', async () => {
+      const setup = createSyncerWithBinarySupport()
+      disposeCallbacks.push(setup.dispose)
+
+      const canvas = await createTestCanvas(setup, 'Test-Canvas')
+
+      setup.fileMap.set('Test-Canvas/product-demo.mp4', createFakeMP4Buffer())
+      const result = await setup.syncer.syncChange({
+        type: 'create',
+        path: 'Test-Canvas/product-demo.mp4',
+      })
+
+      expect(result.success).toBe(true)
+
+      const node = canvas.items.find((i): i is NodeItem => i.kind === 'node' && i.id === result.nodeId)
+      expect(node).toBeDefined()
+
+      const data = node!.xynode.data as VideoNodeData
+      expect(data.originalFilename).toBe('product-demo.mp4')
+      expect(data.storagePath).toContain('product-demo.mp4')
+      expect(data.mimeType).toBe('video/mp4')
+      expect(data.size).toBeGreaterThan(0)
+    })
+
+    it('should update VideoNode when binary content changes', async () => {
+      const setup = createSyncerWithBinarySupport()
+      disposeCallbacks.push(setup.dispose)
+
+      const canvas = await createTestCanvas(setup, 'Test-Canvas')
+
+      setup.fileMap.set('Test-Canvas/demo.mp4', createFakeMP4Buffer())
+      const createResult = await setup.syncer.syncChange({
+        type: 'create',
+        path: 'Test-Canvas/demo.mp4',
+      })
+
+      expect(createResult.success).toBe(true)
+      expect(createResult.action).toBe('created_node')
+
+      const node = canvas.items.find((i): i is NodeItem => i.kind === 'node' && i.id === createResult.nodeId)
+      expect(node).toBeDefined()
+      expect(node!.xynode.type).toBe('video')
+
+      const originalData = node!.xynode.data as VideoNodeData
+      const originalContentHash = originalData.contentHash
+
+      setup.fileMap.set('Test-Canvas/demo.mp4', Buffer.concat([createFakeMP4Buffer(), Buffer.from('updated')]))
+      const updateResult = await setup.syncer.syncChange({
+        type: 'update',
+        path: 'Test-Canvas/demo.mp4',
+      })
+
+      expect(updateResult.success).toBe(true)
+      expect(updateResult.action).toBe('updated_binary_content')
+
+      const currentData = node!.xynode.data as VideoNodeData
+      expect(currentData.storagePath).toBeDefined()
+      expect(currentData.contentHash).not.toBe(originalContentHash)
     })
   })
 

@@ -14,6 +14,8 @@ import type {
   ImageNodeData,
   AudioNode,
   AudioNodeData,
+  VideoNode,
+  VideoNodeData,
 } from '../../../src/types.js'
 
 describe('sanitizeFilename', () => {
@@ -459,6 +461,20 @@ describe('PathMapper', () => {
       } as AudioNode,
     })
 
+    // Helper to create VideoNode test data
+    const createVideoNode = (id: string, name: string, data: VideoNodeData): NodeItem => ({
+      kind: 'node',
+      id,
+      name,
+      xynode: {
+        id,
+        type: 'video',
+        position: { x: 0, y: 0 },
+        data,
+        measured: { width: 520, height: 320 },
+      } as VideoNode,
+    })
+
     it('should map FileNode with correct extension based on mimeType (CSV)', () => {
       const workspace: WorkspaceDocument = {
         root: createRootCanvas([
@@ -585,6 +601,26 @@ describe('PathMapper', () => {
       expect(pathMapper.getPathForNode('audio-1')).toBe('canvas/sound.wav')
     })
 
+    it('should map VideoNode with correct extension based on mimeType (MP4)', () => {
+      const workspace: WorkspaceDocument = {
+        root: createRootCanvas([
+          createCanvas('canvas-1', 'Canvas', [
+            createVideoNode('video-1', 'demo', {
+              storagePath: 'workspaces/123/files/demo.mp4',
+              mimeType: 'video/mp4',
+              size: 65536,
+              originalFilename: 'demo.mp4',
+              contentHash: 'stu901',
+            }),
+          ]),
+        ]),
+      }
+
+      pathMapper.buildFromWorkspace(workspace)
+
+      expect(pathMapper.getPathForNode('video-1')).toBe('canvas/demo.mp4')
+    })
+
     it('should handle mixed node types in same canvas', () => {
       const workspace: WorkspaceDocument = {
         root: createRootCanvas([
@@ -603,6 +639,13 @@ describe('PathMapper', () => {
               size: 4096,
               contentHash: 'def456',
             }),
+            createVideoNode('video-1', 'demo', {
+              storagePath: 'workspaces/123/files/demo.mp4',
+              mimeType: 'video/mp4',
+              size: 65536,
+              originalFilename: 'demo.mp4',
+              contentHash: 'ghi789',
+            }),
           ]),
         ]),
       }
@@ -613,6 +656,7 @@ describe('PathMapper', () => {
       expect(pathMapper.getPathForNode('note-1')).toBe('canvas/notes.md')
       expect(pathMapper.getPathForNode('file-1')).toBe('canvas/data.csv')
       expect(pathMapper.getPathForNode('image-1')).toBe('canvas/chart.png')
+      expect(pathMapper.getPathForNode('video-1')).toBe('canvas/demo.mp4')
     })
   })
 })

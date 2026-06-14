@@ -10,6 +10,7 @@ import type {
   ImageNode,
   FileNode,
   AudioNode,
+  VideoNode,
   LinkNode,
   TextNode,
   StickyNoteNode,
@@ -203,6 +204,10 @@ async function parseAudioNode(xynode: AudioNode, fileFetcher?: FileFetcher, log?
   return parseBinaryNode(xynode.data.storagePath, xynode.id, fileFetcher, log)
 }
 
+async function parseVideoNode(xynode: VideoNode, fileFetcher?: FileFetcher, log?: Logger): Promise<Buffer> {
+  return parseBinaryNode(xynode.data.storagePath, xynode.id, fileFetcher, log)
+}
+
 function parseLinkNode(xynode: LinkNode): Buffer {
   const data = xynode.data
 
@@ -299,6 +304,8 @@ async function parseNodeContent(
       return parseFileNode(xynode as FileNode, fileFetcher, log)
     case 'audio':
       return parseAudioNode(xynode as AudioNode, fileFetcher, log)
+    case 'video':
+      return parseVideoNode(xynode as VideoNode, fileFetcher, log)
     case 'link':
       return parseLinkNode(xynode as LinkNode)
     case 'text':

@@ -77,6 +77,7 @@ Use `kanwas <command> --help` for full option listings.
 
 - A workspace is a tree of canvases (directories) and nodes (files). Markdown notes live as `.md` files inside canvas directories.
 - Checklist, Kanban, Sketch, Text, Link, and Sticky nodes sync as typed YAML files next to markdown notes.
+- Image, audio, video, and generic file nodes sync as native binary files. Video files currently support `.mp4`, `.mov`, `.webm`, `.m4v`, and `.ogv`.
 - `pull` materializes the workspace tree as files on disk and writes a `.kanwas.json` that records the bound workspace ID and a content-hash snapshot.
 - `push` walks the local directory, compares it to the snapshot and the current remote, and applies a `create` / `update` / `delete` for each changed file.
 - `import` is a one-shot — it does not create or update `.kanwas.json` and does not track the imported files for later sync. Use it to seed a workspace from existing markdown.
@@ -130,6 +131,12 @@ Sketch files use the `.sketch.yaml` suffix and persist Excalidraw data plus SVG 
 excalidrawElements: []
 excalidrawFiles: {}
 excalidrawSvg: '<svg xmlns="http://www.w3.org/2000/svg"></svg>'
+```
+
+Video nodes are regular video files on disk:
+
+```text
+demo-reel.mp4
 ```
 
 ## Use with Claude Code and other coding agents

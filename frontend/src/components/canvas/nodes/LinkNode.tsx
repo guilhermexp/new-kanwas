@@ -149,6 +149,34 @@ export default memo(function LinkNode({ id, data, selected, width, height }: Lin
     })
   }
 
+  const handleIframeLoad = (event: React.SyntheticEvent<HTMLIFrameElement>) => {
+    const frame = event.currentTarget
+
+    try {
+      const frameDocument = frame.contentDocument
+      const frameLocation = frame.contentWindow?.location.href ?? ''
+      const frameTitle = frameDocument?.title.toLowerCase() ?? ''
+      const frameText = frameDocument?.body?.textContent?.toLowerCase().slice(0, 600) ?? ''
+
+      const isBrowserErrorPage =
+        frameLocation.startsWith('chrome-error://') ||
+        frameTitle.includes('não foi possível') ||
+        frameTitle.includes("can't be reached") ||
+        frameText.includes('não foi possível acessar') ||
+        frameText.includes("this site can't be reached") ||
+        frameText.includes('err_connection') ||
+        frameText.includes('err_name') ||
+        frameText.includes('err_blocked') ||
+        frameText.includes('refused to connect')
+
+      if (isBrowserErrorPage) {
+        setIframeLoadFailed(true)
+      }
+    } catch {
+      // Cross-origin frames that load successfully are expected to be unreadable.
+    }
+  }
+
   const handleResizeStart = () => {
     setShowResizePlaceholder(true)
     setIsResizing(true)
@@ -313,6 +341,7 @@ export default memo(function LinkNode({ id, data, selected, width, height }: Lin
                     className="h-full w-full bg-block-highlight"
                     sandbox={iframeSandbox}
                     referrerPolicy="strict-origin-when-cross-origin"
+                    onLoad={handleIframeLoad}
                     onError={() => setIframeLoadFailed(true)}
                   />
                 ) : (
@@ -322,6 +351,7 @@ export default memo(function LinkNode({ id, data, selected, width, height }: Lin
                     className="h-full w-full bg-block-highlight"
                     sandbox={iframeSandbox}
                     referrerPolicy="strict-origin-when-cross-origin"
+                    onLoad={handleIframeLoad}
                     onError={() => setIframeLoadFailed(true)}
                   />
                 )}

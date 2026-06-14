@@ -14,6 +14,7 @@ interface CanvasContextMenuProps {
   onAddLink?: () => void
   onAddImage?: () => void
   onAddFile?: () => void
+  onAddVideo?: () => void
   onGroup: () => void
   onCreateSection: () => void
   canGroupSelection: boolean
@@ -55,6 +56,7 @@ export const CanvasContextMenu = memo(function CanvasContextMenu({
   onAddLink,
   onAddImage,
   onAddFile,
+  onAddVideo,
   onGroup,
   onCreateSection,
   canGroupSelection,
@@ -167,6 +169,16 @@ export const CanvasContextMenu = memo(function CanvasContextMenu({
                 label="Add file"
                 onClick={() => {
                   onAddFile()
+                  onClose()
+                }}
+              />
+            )}
+            {onAddVideo && (
+              <MenuItem
+                icon="fa-solid fa-video"
+                label="Add video"
+                onClick={() => {
+                  onAddVideo()
                   onClose()
                 }}
               />

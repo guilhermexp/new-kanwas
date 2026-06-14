@@ -9,13 +9,15 @@ import type {
   ImageNodeData,
   AudioNode,
   AudioNodeData,
+  VideoNode,
+  VideoNodeData,
   FileNode,
   FileNodeData,
   LinkNode,
   LinkNodeData,
   Edge,
 } from '../../src/types.js'
-import { AUDIO_NODE_LAYOUT, FILE_NODE_LAYOUT, LINK_NODE_LAYOUT } from '../../src/constants.js'
+import { AUDIO_NODE_LAYOUT, FILE_NODE_LAYOUT, LINK_NODE_LAYOUT, VIDEO_NODE_LAYOUT } from '../../src/constants.js'
 import { ensureWorkspaceNotesMap } from '../../src/workspace/note-doc.js'
 import { createWorkspaceContentStore } from '../../src/workspace/workspace-content-store.js'
 import { createServerBlockNoteEditor } from '../../src/workspace/server-blocknote.js'
@@ -151,6 +153,31 @@ export function createAudioNode(
     position,
     data,
     measured: AUDIO_NODE_LAYOUT.DEFAULT_MEASURED,
+  }
+
+  return {
+    kind: 'node',
+    id,
+    name,
+    xynode,
+  }
+}
+
+/**
+ * Helper to create a NodeItem with Video type
+ */
+export function createVideoNode(
+  id: string,
+  name: string,
+  data: VideoNodeData,
+  position: { x: number; y: number } = { x: 0, y: 0 }
+): NodeItem {
+  const xynode: VideoNode = {
+    id,
+    type: 'video',
+    position,
+    data,
+    measured: VIDEO_NODE_LAYOUT.DEFAULT_MEASURED,
   }
 
   return {

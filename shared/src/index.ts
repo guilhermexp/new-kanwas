@@ -34,6 +34,8 @@ export type {
   FileNodeData,
   AudioNode,
   AudioNodeData,
+  VideoNode,
+  VideoNodeData,
   LinkNode,
   LinkNodeData,
   TextNode,
@@ -193,6 +195,7 @@ export {
   IMAGE_NODE_LAYOUT,
   FILE_NODE_LAYOUT,
   AUDIO_NODE_LAYOUT,
+  VIDEO_NODE_LAYOUT,
   LINK_NODE_LAYOUT,
   LINK_IFRAME_LAYOUT,
   NODE_NAME_HEIGHT,
@@ -221,11 +224,15 @@ export {
   // Audio node constants
   SUPPORTED_AUDIO_EXTENSIONS,
   isAudioExtension,
+  // Video node constants
+  SUPPORTED_VIDEO_EXTENSIONS,
+  isVideoExtension,
 } from './constants.js'
 export type {
   SupportedImageExtension,
   SupportedFileExtension,
   SupportedAudioExtension,
+  SupportedVideoExtension,
   PositionDirection,
   PositionOptions,
 } from './constants.js'

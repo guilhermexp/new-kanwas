@@ -8,6 +8,7 @@ export type ToolKind =
   | 'image'
   | 'file'
   | 'audio'
+  | 'video'
   | 'link'
   | 'section'
 
@@ -36,6 +37,7 @@ export const MORE_TOOLS: ToolDef[] = [
   { kind: 'image', icon: 'fa-image', label: 'Image' },
   { kind: 'file', icon: 'fa-file', label: 'File' },
   { kind: 'audio', icon: 'fa-volume-high', label: 'Audio' },
+  { kind: 'video', icon: 'fa-video', label: 'Video' },
 ]
 
 export const ALL_TOOLS = [...PRIMARY_TOOLS, ...MORE_TOOLS]

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useContext } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import type { CanvasItem } from 'shared'
-import { SUPPORTED_FILE_EXTENSIONS, SUPPORTED_AUDIO_EXTENSIONS } from 'shared/constants'
+import { SUPPORTED_FILE_EXTENSIONS, SUPPORTED_AUDIO_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS } from 'shared/constants'
 import { SUPPORTED_IMAGE_TYPES } from './constants'
 import {
   useAddNode,
@@ -10,6 +10,7 @@ import {
   useAddImageNode,
   useAddFileNode,
   useAddAudioNode,
+  useAddVideoNode,
   useAddLinkNode,
   useAddTextNode,
   useAddStickyNote,
@@ -113,6 +114,7 @@ export function useToolbarPlacement(canvas: CanvasItem, onSectionContentChange?:
   const fileInputRef = useRef<HTMLInputElement>(null)
   const genericFileInputRef = useRef<HTMLInputElement>(null)
   const audioFileInputRef = useRef<HTMLInputElement>(null)
+  const videoFileInputRef = useRef<HTMLInputElement>(null)
 
   const { workspaceUndoController } = useContext(WorkspaceContext)!
   const { screenToFlowPosition } = useReactFlow()
@@ -121,6 +123,7 @@ export function useToolbarPlacement(canvas: CanvasItem, onSectionContentChange?:
   const addImageNode = useAddImageNode()
   const addFileNode = useAddFileNode()
   const addAudioNode = useAddAudioNode()
+  const addVideoNode = useAddVideoNode()
   const addLinkNode = useAddLinkNode()
   const addTextNode = useAddTextNode()
   const addStickyNote = useAddStickyNote()
@@ -244,6 +247,11 @@ export function useToolbarPlacement(canvas: CanvasItem, onSectionContentChange?:
         case 'audio': {
           pendingPlacementRef.current = { position, sectionId }
           audioFileInputRef.current?.click()
+          break
+        }
+        case 'video': {
+          pendingPlacementRef.current = { position, sectionId }
+          videoFileInputRef.current?.click()
           break
         }
         case 'link': {
@@ -485,6 +493,22 @@ export function useToolbarPlacement(canvas: CanvasItem, onSectionContentChange?:
     }
   }
 
+  const handleVideoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    const pendingPlacement = pendingPlacementRef.current
+    pendingPlacementRef.current = null
+    const position = pendingPlacement?.position ?? null
+    try {
+      const nodeId = await addVideoNode({ file, canvasId: canvas.id, ...(position ? { position } : {}) })
+      attachCreatedItemToSection(nodeId, pendingPlacement?.sectionId ?? null)
+      if (!position) setTimeout(() => fitNodeInView(nodeId), 100)
+    } catch {
+      // error toast shown by hook
+    }
+  }
+
   const handleLinkSubmit = (url: string) => {
     const pendingPlacement = pendingPlacementRef.current
     pendingPlacementRef.current = null
@@ -517,6 +541,7 @@ export function useToolbarPlacement(canvas: CanvasItem, onSectionContentChange?:
     fileInputRef,
     genericFileInputRef,
     audioFileInputRef,
+    videoFileInputRef,
 
     // Handlers
     handleToolClick,
@@ -525,6 +550,7 @@ export function useToolbarPlacement(canvas: CanvasItem, onSectionContentChange?:
     handleImageFileChange,
     handleGenericFileChange,
     handleAudioFileChange,
+    handleVideoFileChange,
     handleLinkSubmit,
     handleLinkModalClose,
 
@@ -532,5 +558,6 @@ export function useToolbarPlacement(canvas: CanvasItem, onSectionContentChange?:
     imageAccept: SUPPORTED_IMAGE_TYPES.join(','),
     fileAccept: SUPPORTED_FILE_EXTENSIONS.map((ext: string) => `.${ext}`).join(','),
     audioAccept: SUPPORTED_AUDIO_EXTENSIONS.map((ext: string) => `.${ext}`).join(','),
+    videoAccept: SUPPORTED_VIDEO_EXTENSIONS.map((ext: string) => `.${ext}`).join(','),
   }
 }

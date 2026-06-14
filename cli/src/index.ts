@@ -27,6 +27,7 @@ Each project directory binds to one workspace via .kanwas.json.
 
 Use --id or --name flags with pull for non-interactive use (CI/agents).
 Checklist, Kanban, Sketch, Text, Link, and Sticky nodes sync as typed YAML files.
+Image, audio, video, and file nodes sync as native binary files.
 Use "kanwas workspaces --json" to list workspaces programmatically.`
   )
 

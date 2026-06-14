@@ -7,7 +7,7 @@ description: Sync local files with a Kanwas workspace using the kanwas CLI. Use 
 
 > **Install as a Claude Code skill:** copy this file to `~/.claude/skills/kanwas-cli/SKILL.md` (user-wide) or `.claude/skills/kanwas-cli/SKILL.md` (per-project).
 
-`kanwas` is a CLI for syncing a Kanwas workspace with the local filesystem. Workspaces live as trees of canvases (directories) and nodes (files); markdown notes are `.md` files inside canvas directories. Checklist, Kanban, Sketch, Text, Link, and Sticky nodes are typed YAML files.
+`kanwas` is a CLI for syncing a Kanwas workspace with the local filesystem. Workspaces live as trees of canvases (directories) and nodes (files); markdown notes are `.md` files inside canvas directories. Checklist, Kanban, Sketch, Text, Link, and Sticky nodes are typed YAML files. Image, audio, video, and generic file nodes are native binary files.
 
 ## When to use
 
@@ -105,6 +105,12 @@ columns:
 excalidrawElements: []
 excalidrawFiles: {}
 excalidrawSvg: '<svg xmlns="http://www.w3.org/2000/svg"></svg>'
+```
+
+Video nodes are regular files on disk:
+
+```text
+qa-video.mp4
 ```
 
 ### Push local edits back

@@ -6,7 +6,7 @@ import { tuyau } from '@/api/client'
 import { useSignedUrl } from '@/hooks/useSignedUrl'
 import { showToast } from '@/utils/toast'
 import { DocumentName } from './DocumentName'
-import { RESIZE_HANDLE_SIZE } from './ResizeHandle'
+import { ResizeHandle, RESIZE_HANDLE_SIZE } from './ResizeHandle'
 import type { WithCanvasData } from '../types'
 
 const controlStyle: React.CSSProperties = {
@@ -19,6 +19,14 @@ const controlStyle: React.CSSProperties = {
   cursor: 'se-resize',
   userSelect: 'none',
   WebkitUserSelect: 'none',
+}
+
+const imageSurfaceStyle: React.CSSProperties = {
+  backgroundColor: 'color-mix(in srgb, var(--editor) 92%, var(--canvas) 8%)',
+  backgroundImage:
+    'linear-gradient(45deg, color-mix(in srgb, var(--foreground) 8%, transparent) 25%, transparent 25%), linear-gradient(-45deg, color-mix(in srgb, var(--foreground) 8%, transparent) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, color-mix(in srgb, var(--foreground) 8%, transparent) 75%), linear-gradient(-45deg, transparent 75%, color-mix(in srgb, var(--foreground) 8%, transparent) 75%)',
+  backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0',
+  backgroundSize: '16px 16px',
 }
 
 type ImageNodeProps = WithCanvasData<ImageNodeType>
@@ -127,19 +135,12 @@ export default memo(function ImageNode({ selected, id, data, width, height }: Im
           shouldResize={() => true}
           autoScale={false}
         >
-          <svg
-            width={RESIZE_HANDLE_SIZE}
-            height={RESIZE_HANDLE_SIZE}
-            viewBox="0 0 26 26"
-            fill="none"
-            className="pointer-events-none block"
-          >
-            <path d="M24 2V24H2" stroke="#999" strokeWidth={3} strokeLinecap="square" strokeLinejoin="miter" />
-          </svg>
+          <ResizeHandle color="#999999" />
         </NodeResizeControl>
         <div
-          className="box-border relative overflow-hidden"
+          className="box-border relative overflow-hidden rounded-sm"
           style={{
+            ...imageSurfaceStyle,
             width: nodeWidth,
             height: imageHeight,
           }}
@@ -208,7 +209,7 @@ export default memo(function ImageNode({ selected, id, data, width, height }: Im
                 onLoad={handleImageLoad}
                 onError={handleImageError}
                 draggable={false}
-                className="pointer-events-none select-none w-full h-full object-cover"
+                className="pointer-events-none select-none w-full h-full object-contain"
                 style={{ userSelect: 'none', WebkitUserDrag: 'none' } as React.CSSProperties}
               />
             </>

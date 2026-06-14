@@ -562,6 +562,7 @@ export default class DefaultWorkspaceTemplateService {
         return
       case 'file':
       case 'audio':
+      case 'video':
         issues.push(`${location} uses unsupported node type "${node.xynode.type}"`)
         return
       default:

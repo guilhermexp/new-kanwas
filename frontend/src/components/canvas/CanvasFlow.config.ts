@@ -4,6 +4,7 @@ import CanvasNode from './nodes/CanvasNode'
 import ImageNode from './nodes/ImageNode'
 import FileNode from './nodes/FileNode'
 import AudioNode from './nodes/AudioNode'
+import VideoNode from './nodes/VideoNode'
 import LinkNode from './nodes/LinkNode'
 import TextNode from './nodes/TextNode'
 import StickyNoteNode from './nodes/StickyNoteNode'
@@ -20,6 +21,7 @@ export const canvasNodeTypes = {
   image: ImageNode,
   file: FileNode,
   audio: AudioNode,
+  video: VideoNode,
   link: LinkNode,
   text: TextNode,
   stickyNote: StickyNoteNode,
@@ -46,6 +48,8 @@ export function defaultCollapsedNodeEmoji(type: string): string {
       return '\u{1F4CA}'
     case 'sketch':
       return '\u{270F}\u{FE0F}'
+    case 'video':
+      return '\u{1F3A5}'
     default:
       return '\u{1F4C4}'
   }

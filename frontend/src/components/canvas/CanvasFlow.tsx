@@ -522,6 +522,7 @@ export function CanvasFlow({
     handleAddLink: handleContextMenuAddLink,
     handleAddImage: handleContextMenuAddImage,
     handleAddFile: handleContextMenuAddFile,
+    handleAddVideo: handleContextMenuAddVideo,
   } = useCanvasContextMenuAddActions({
     canvasId: canvas.id,
     contextMenu,
@@ -529,6 +530,7 @@ export function CanvasFlow({
     addLinkNode: importInteractions.addLinkNode,
     addImageNode: importInteractions.addImageNode,
     addFileNode: importInteractions.addFileNode,
+    addVideoNode: importInteractions.addVideoNode,
   })
 
   return (
@@ -620,6 +622,7 @@ export function CanvasFlow({
         onAddLink={handleContextMenuAddLink}
         onAddImage={handleContextMenuAddImage}
         onAddFile={handleContextMenuAddFile}
+        onAddVideo={handleContextMenuAddVideo}
       />
     </>
   )

@@ -9,6 +9,7 @@ import {
   useAddImageNode,
   useAddFileNode,
   useAddAudioNode,
+  useAddVideoNode,
   useAddLinkNode,
   useAddTextNode,
   useAddStickyNote,
@@ -43,6 +44,7 @@ export function useCanvasImportInteractions({
   const addImageNode = useAddImageNode()
   const addFileNode = useAddFileNode()
   const addAudioNode = useAddAudioNode()
+  const addVideoNode = useAddVideoNode()
   const addLinkNode = useAddLinkNode()
   const [isDraggingOver, setIsDraggingOver] = useState(false)
   const lastCanvasMousePositionRef = useRef<Position | null>(null)
@@ -71,6 +73,11 @@ export function useCanvasImportInteractions({
           return
         }
 
+        if (item.kind === 'video') {
+          addVideoNode({ file: item.file, canvasId, position }).catch(() => {})
+          return
+        }
+
         if (item.kind === 'file') {
           addFileNode({ file: item.file, canvasId, position }).catch(() => {})
           return
@@ -92,7 +99,7 @@ export function useCanvasImportInteractions({
 
       return true
     },
-    [addAudioNode, addBlockNoteNodeFromImport, addFileNode, addImageNode, addLinkNode, canvasId]
+    [addAudioNode, addBlockNoteNodeFromImport, addFileNode, addImageNode, addLinkNode, addVideoNode, canvasId]
   )
 
   const getPastePosition = useCallback(() => {
@@ -253,6 +260,7 @@ export function useCanvasImportInteractions({
     addSketchNode,
     addImageNode,
     addFileNode,
+    addVideoNode,
     addLinkNode,
     isDraggingOver,
     handleCanvasFocusCapture,

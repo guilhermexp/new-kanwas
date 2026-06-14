@@ -11,6 +11,7 @@ import type {
   ImageNodeData,
   FileNodeData,
   AudioNodeData,
+  VideoNodeData,
   LinkNodeData,
   SectionDef,
   TextNodeData,
@@ -33,6 +34,7 @@ import {
   IMAGE_NODE_LAYOUT,
   KANBAN_NODE_LAYOUT,
   SKETCH_NODE_LAYOUT,
+  VIDEO_NODE_LAYOUT,
 } from '../constants.js'
 import { getImageDimensionsFromBuffer } from '../image-utils.js'
 import { ContentConverter } from './content-converter.js'
@@ -1735,8 +1737,8 @@ export class FilesystemSyncer {
         width: dimensions?.width,
         height: dimensions?.height,
       }
-    } else if (existingNode.xynode.type === 'audio') {
-      const existingData = existingNode.xynode.data as AudioNodeData
+    } else if (existingNode.xynode.type === 'audio' || existingNode.xynode.type === 'video') {
+      const existingData = existingNode.xynode.data as AudioNodeData | VideoNodeData
       existingNode.xynode.data = {
         ...existingData,
         storagePath: uploadResult.storagePath,
@@ -1874,9 +1876,9 @@ export class FilesystemSyncer {
           measured: { ...displaySize },
         },
       }
-    } else if (fileInfo.nodeType === 'audio') {
-      // AUDIO NODE - fixed size, similar to file but different type
-      const nodeData: AudioNodeData = {
+    } else if (fileInfo.nodeType === 'audio' || fileInfo.nodeType === 'video') {
+      // AUDIO/VIDEO NODE - fixed size, similar to file but different type
+      const nodeData: AudioNodeData | VideoNodeData = {
         storagePath: uploadResult.storagePath,
         mimeType: uploadResult.mimeType,
         size: uploadResult.size,
@@ -1890,9 +1892,15 @@ export class FilesystemSyncer {
         name: nameWithoutExt,
         xynode: {
           id: nodeId,
-          type: 'audio' as const,
+          type: fileInfo.nodeType === 'video' ? ('video' as const) : ('audio' as const),
           position: { x: 0, y: 0 },
           data: nodeData,
+          ...(fileInfo.nodeType === 'video'
+            ? {
+                initialWidth: VIDEO_NODE_LAYOUT.DEFAULT_MEASURED.width,
+                initialHeight: VIDEO_NODE_LAYOUT.DEFAULT_MEASURED.height,
+              }
+            : {}),
         },
       }
     } else {

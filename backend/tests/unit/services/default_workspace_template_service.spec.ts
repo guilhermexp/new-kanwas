@@ -290,6 +290,13 @@ test.group('DefaultWorkspaceTemplateService', () => {
         originalFilename: 'recording.mp3',
         contentHash: 'hash',
       }),
+      createNode('video-1', 'demo', 'video', {
+        storagePath: 'files/source/root/demo.mp4',
+        mimeType: 'video/mp4',
+        size: 123,
+        originalFilename: 'demo.mp4',
+        contentHash: 'hash',
+      }),
     ])
 
     try {
@@ -299,6 +306,7 @@ test.group('DefaultWorkspaceTemplateService', () => {
       assert.instanceOf(error, UnsupportedDefaultWorkspaceTemplateError)
       assert.include((error as Error).message, 'unsupported node type "file"')
       assert.include((error as Error).message, 'unsupported node type "audio"')
+      assert.include((error as Error).message, 'unsupported node type "video"')
     }
   })
 

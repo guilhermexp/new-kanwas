@@ -1,4 +1,4 @@
-import type { AudioNodeData, FileNodeData, ImageNodeData, NodeItem, XyNode } from '../types.js'
+import type { AudioNodeData, FileNodeData, ImageNodeData, NodeItem, VideoNodeData, XyNode } from '../types.js'
 import { getExtensionFromMimeType } from './binary-types.js'
 
 type NodeLike = Pick<NodeItem, 'xynode'> | XyNode
@@ -42,7 +42,7 @@ export function getNodeFilesystemExtension(node: NodeLike): string {
     return '.sketch.yaml'
   }
 
-  const data = getNodeData(node) as ImageNodeData | FileNodeData | AudioNodeData
+  const data = getNodeData(node) as ImageNodeData | FileNodeData | AudioNodeData | VideoNodeData
   const ext = getExtensionFromMimeType(data.mimeType) || 'bin'
   return `.${ext}`
 }

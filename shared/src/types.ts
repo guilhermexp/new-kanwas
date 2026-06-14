@@ -124,6 +124,16 @@ export type AudioNodeData = {
   audit?: AuditFields
 } & SectionMembershipFields
 
+export type VideoNodeData = {
+  storagePath: string // "files/{workspaceId}/{canvasId}/{filename}"
+  mimeType: string // "video/mp4", "video/webm", etc.
+  size: number // File size in bytes
+  originalFilename: string // Preserve original filename for display
+  duration?: number // Optional: video duration in seconds (future enhancement)
+  contentHash: string // SHA-256 hash for cache invalidation
+  audit?: AuditFields
+} & SectionMembershipFields
+
 export type LinkNodeData = {
   url: string // The URL (mandatory)
   title?: string // OG title
@@ -144,6 +154,7 @@ export type BlockNoteNode = XYFlowNode<BlockNoteNodeData, 'blockNote'>
 export type ImageNode = XYFlowNode<ImageNodeData, 'image'>
 export type FileNode = XYFlowNode<FileNodeData, 'file'>
 export type AudioNode = XYFlowNode<AudioNodeData, 'audio'>
+export type VideoNode = XYFlowNode<VideoNodeData, 'video'>
 export type LinkNode = XYFlowNode<LinkNodeData, 'link'>
 
 export type NodeFontFamily = 'caveat' | 'libre-baskerville' | 'inter'
@@ -264,6 +275,7 @@ export type XyNode =
   | ImageNode
   | FileNode
   | AudioNode
+  | VideoNode
   | LinkNode
   | TextNode
   | StickyNoteNode

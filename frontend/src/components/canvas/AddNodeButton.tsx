@@ -33,17 +33,20 @@ export const AddNodeButton = memo(function AddNodeButton({
     fileInputRef,
     genericFileInputRef,
     audioFileInputRef,
+    videoFileInputRef,
     handleToolClick,
     handleToolDoubleClick,
     handleToolMouseDown,
     handleImageFileChange,
     handleGenericFileChange,
     handleAudioFileChange,
+    handleVideoFileChange,
     handleLinkSubmit,
     handleLinkModalClose,
     imageAccept,
     fileAccept,
     audioAccept,
+    videoAccept,
   } = useToolbarPlacement(canvas, onSectionContentChange)
 
   useEffect(() => {
@@ -70,6 +73,13 @@ export const AddNodeButton = memo(function AddNodeButton({
         type="file"
         accept={audioAccept}
         onChange={handleAudioFileChange}
+        className="hidden"
+      />
+      <input
+        ref={videoFileInputRef}
+        type="file"
+        accept={videoAccept}
+        onChange={handleVideoFileChange}
         className="hidden"
       />
 

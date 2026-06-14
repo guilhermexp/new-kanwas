@@ -12,6 +12,7 @@ import type {
   ImageNodeData,
   FileNodeData,
   AudioNodeData,
+  VideoNodeData,
   LinkNodeData,
   TextNodeData,
   StickyNoteNodeData,
@@ -27,6 +28,7 @@ import {
   IMAGE_NODE_LAYOUT,
   FILE_NODE_LAYOUT,
   AUDIO_NODE_LAYOUT,
+  VIDEO_NODE_LAYOUT,
   LINK_NODE_LAYOUT,
   TEXT_NODE_LAYOUT,
   STICKY_NOTE_NODE_LAYOUT,
@@ -37,8 +39,10 @@ import {
   calculateImageDisplaySize,
   SUPPORTED_FILE_EXTENSIONS,
   SUPPORTED_AUDIO_EXTENSIONS,
+  SUPPORTED_VIDEO_EXTENSIONS,
   type SupportedFileExtension,
   type SupportedAudioExtension,
+  type SupportedVideoExtension,
 } from 'shared/constants'
 import { useVisibleCanvasArea } from './useVisibleCanvasArea'
 import { NODE_NAME_HEIGHT } from './canvasLayout'
@@ -139,7 +143,9 @@ function getUniqueNameForExistingNode(root: CanvasItem, nodeId: string, preferre
       kind: 'node',
       type: located.node.xynode.type,
       originalFilename:
-        located.node.xynode.type === 'file' || located.node.xynode.type === 'audio'
+        located.node.xynode.type === 'file' ||
+        located.node.xynode.type === 'audio' ||
+        located.node.xynode.type === 'video'
           ? (located.node.xynode.data as { originalFilename?: string }).originalFilename
           : undefined,
       mimeType:
@@ -846,6 +852,95 @@ export const useAddAudioNode = () => {
           data: audioData,
           initialWidth: AUDIO_NODE_LAYOUT.DEFAULT_MEASURED.width,
           initialHeight: AUDIO_NODE_LAYOUT.DEFAULT_MEASURED.height,
+        },
+      }
+
+      appendNodeWithCreateAudit(targetCanvas, newNodeItem, auditActor, nowIso)
+
+      return nodeId
+    },
+    [store, workspaceId, uploadImage, auditActor]
+  )
+}
+
+// Add a video node to a canvas
+export const useAddVideoNode = () => {
+  const { store, workspaceId } = useContext(WorkspaceContext)!
+  const { user } = useAuthState()
+  const uploadImage = useUploadImage() // Reuse same upload hook - backend accepts all file types
+  const auditActor = createUserAuditActor(user?.id)
+
+  return useCallback(
+    async (options: { file: File; canvasId?: string; position?: { x: number; y: number } }): Promise<string> => {
+      const { file, canvasId } = options
+
+      // Validate extension
+      const ext = file.name.split('.').pop()?.toLowerCase()
+      if (!ext || !SUPPORTED_VIDEO_EXTENSIONS.includes(ext as SupportedVideoExtension)) {
+        showToast(`Unsupported video format: .${ext}`, 'error')
+        throw new Error(`Unsupported video format: .${ext}`)
+      }
+
+      // Validate size (use same limit as images: 5MB)
+      if (file.size > MAX_IMAGE_SIZE_BYTES) {
+        showToast('Video file must be less than 5MB', 'error')
+        throw new Error('Video file must be less than 5MB')
+      }
+
+      // Find target canvas
+      const targetCanvas = findTargetCanvas(store.root, canvasId)
+      if (!targetCanvas) {
+        showToast('No canvas found', 'error')
+        throw new Error('No canvas found')
+      }
+
+      const uniqueBaseName = getUniqueNameForNewNode(targetCanvas, file.name.replace(/\.[^/.]+$/, ''), {
+        type: 'video',
+        originalFilename: file.name,
+      })
+      const extension = file.name.match(/\.[^/.]+$/)?.[0] || ''
+      const filename = `${uniqueBaseName}${extension}`
+
+      // Compute content hash for cache invalidation
+      const contentHash = await computeFileHash(file)
+
+      // Upload file (reuses image upload endpoint - it accepts any file)
+      const uploadResult = await uploadImage.mutateAsync({
+        file,
+        workspaceId,
+        canvasId: targetCanvas.id,
+        filename,
+      })
+
+      // Use provided position or calculate using shared utility
+      const nodeItems = targetCanvas.items.filter((i) => i.kind === 'node')
+      const position =
+        options.position ??
+        calculateItemPosition(nodeItems, { direction: 'horizontal', defaultSize: VIDEO_NODE_LAYOUT.WIDTH })
+
+      // Create video node
+      const nodeId = crypto.randomUUID()
+      const videoData: VideoNodeData = {
+        storagePath: uploadResult.storagePath,
+        mimeType: uploadResult.mimeType,
+        size: uploadResult.size,
+        originalFilename: filename,
+        contentHash,
+      }
+
+      const nowIso = new Date().toISOString()
+      const newNodeItem: NodeItem = {
+        id: nodeId,
+        name: uniqueBaseName,
+        kind: 'node' as const,
+        collapsed: false as const,
+        xynode: {
+          id: nodeId,
+          type: 'video' as const,
+          position,
+          data: videoData,
+          initialWidth: VIDEO_NODE_LAYOUT.DEFAULT_MEASURED.width,
+          initialHeight: VIDEO_NODE_LAYOUT.DEFAULT_MEASURED.height,
         },
       }
 

@@ -31,7 +31,7 @@ function getNodeDisplayExtension(target: Extract<NameTarget, { kind: 'node' }>):
     return getImageExtensionFromMimeType(target.mimeType)
   }
 
-  if (target.type === 'file' || target.type === 'audio') {
+  if (target.type === 'file' || target.type === 'audio' || target.type === 'video') {
     return getFilenameExtension(target.originalFilename)
   }
 
@@ -70,7 +70,7 @@ export function getCanvasItemDisplayName(item: CanvasSibling): string {
     kind: 'node',
     type: item.xynode.type,
     originalFilename:
-      item.xynode.type === 'file' || item.xynode.type === 'audio'
+      item.xynode.type === 'file' || item.xynode.type === 'audio' || item.xynode.type === 'video'
         ? (item.xynode.data as { originalFilename?: string }).originalFilename
         : undefined,
     mimeType: item.xynode.type === 'image' ? (item.xynode.data as { mimeType?: string }).mimeType : undefined,

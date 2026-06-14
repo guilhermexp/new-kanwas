@@ -35,6 +35,7 @@ interface CanvasFlowOverlaysProps {
   onAddLink: () => void
   onAddImage: () => void
   onAddFile: () => void
+  onAddVideo: () => void
 }
 
 export function CanvasFlowOverlays({
@@ -63,6 +64,7 @@ export function CanvasFlowOverlays({
   onAddLink,
   onAddImage,
   onAddFile,
+  onAddVideo,
 }: CanvasFlowOverlaysProps) {
   return (
     <>
@@ -102,6 +104,7 @@ export function CanvasFlowOverlays({
           onAddLink={onAddLink}
           onAddImage={onAddImage}
           onAddFile={onAddFile}
+          onAddVideo={onAddVideo}
           onGroup={createGroup}
           onCreateSection={createSection}
           canGroupSelection={canGroupSelection}

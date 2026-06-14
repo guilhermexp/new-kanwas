@@ -8,6 +8,7 @@ import {
   NODE_LAYOUT,
   STICKY_NOTE_NODE_LAYOUT,
   TEXT_NODE_LAYOUT,
+  VIDEO_NODE_LAYOUT,
 } from 'shared/constants'
 import { CANVAS } from './constants'
 
@@ -100,6 +101,8 @@ function getCanvasItemFallbackSize(item: CanvasTreeItem): { width: number; heigh
       return FILE_NODE_LAYOUT.DEFAULT_MEASURED
     case 'audio':
       return AUDIO_NODE_LAYOUT.DEFAULT_MEASURED
+    case 'video':
+      return VIDEO_NODE_LAYOUT.DEFAULT_MEASURED
     case 'link':
       return LINK_NODE_LAYOUT.DEFAULT_MEASURED
     case 'text':

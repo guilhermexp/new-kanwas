@@ -284,6 +284,19 @@ export const AUDIO_NODE_LAYOUT = {
 } as const
 
 // ============================================================================
+// VIDEO NODE CONSTANTS
+// ============================================================================
+
+export const VIDEO_NODE_LAYOUT = {
+  WIDTH: 520,
+  HEIGHT: 320,
+  MIN_WIDTH: 260,
+  MIN_HEIGHT: 180,
+  MAX_WIDTH: 1280,
+  DEFAULT_MEASURED: { width: 520, height: 320 },
+} as const
+
+// ============================================================================
 // LINK NODE CONSTANTS
 // ============================================================================
 
@@ -331,16 +344,7 @@ export const SKETCH_NODE_LAYOUT = {
 } as const
 
 /** Supported audio extensions (browser-playable) */
-export const SUPPORTED_AUDIO_EXTENSIONS = [
-  'mp3',
-  'wav',
-  'ogg',
-  'aac',
-  'flac',
-  'm4a',
-  'opus',
-  'webm', // Can be video or audio, treating as audio here
-] as const
+export const SUPPORTED_AUDIO_EXTENSIONS = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'opus'] as const
 
 export type SupportedAudioExtension = (typeof SUPPORTED_AUDIO_EXTENSIONS)[number]
 
@@ -351,7 +355,19 @@ export function isAudioExtension(ext: string): ext is SupportedAudioExtension {
   return SUPPORTED_AUDIO_EXTENSIONS.includes(ext.toLowerCase() as SupportedAudioExtension)
 }
 
-/** Supported file extensions (non-image, non-audio binary files) */
+/** Supported video extensions (browser-playable) */
+export const SUPPORTED_VIDEO_EXTENSIONS = ['mp4', 'mov', 'webm', 'm4v', 'ogv'] as const
+
+export type SupportedVideoExtension = (typeof SUPPORTED_VIDEO_EXTENSIONS)[number]
+
+/**
+ * Check if an extension is a supported video extension
+ */
+export function isVideoExtension(ext: string): ext is SupportedVideoExtension {
+  return SUPPORTED_VIDEO_EXTENSIONS.includes(ext.toLowerCase() as SupportedVideoExtension)
+}
+
+/** Supported file extensions (non-image, non-audio, non-video binary files) */
 export const SUPPORTED_FILE_EXTENSIONS = [
   // Documents
   'pdf',
@@ -368,9 +384,6 @@ export const SUPPORTED_FILE_EXTENSIONS = [
   'xml',
   'yaml',
   'yml',
-  // Video (audio moved to SUPPORTED_AUDIO_EXTENSIONS)
-  'mp4',
-  'mov',
   // Archives
   'zip',
   'tar',

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { SUPPORTED_FILE_EXTENSIONS } from 'shared/constants'
+import { SUPPORTED_FILE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS } from 'shared/constants'
 import { SUPPORTED_IMAGE_TYPES } from './constants'
 import { AddLinkModal } from './AddLinkModal'
 
@@ -15,6 +15,7 @@ interface UseCanvasContextMenuAddActionsOptions {
   addLinkNode: (options: { url: string; canvasId?: string; position?: ContextMenuPosition }) => string | null
   addImageNode: (options: { file: File; canvasId?: string; position?: ContextMenuPosition }) => Promise<string>
   addFileNode: (options: { file: File; canvasId?: string; position?: ContextMenuPosition }) => Promise<string>
+  addVideoNode: (options: { file: File; canvasId?: string; position?: ContextMenuPosition }) => Promise<string>
 }
 
 export function useCanvasContextMenuAddActions({
@@ -24,11 +25,13 @@ export function useCanvasContextMenuAddActions({
   addLinkNode,
   addImageNode,
   addFileNode,
+  addVideoNode,
 }: UseCanvasContextMenuAddActionsOptions) {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false)
   const [pendingPosition, setPendingPosition] = useState<ContextMenuPosition | null>(null)
   const imageFileInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const videoInputRef = useRef<HTMLInputElement>(null)
 
   const getMenuPosition = useCallback(() => {
     if (!contextMenu) return null
@@ -68,6 +71,14 @@ export function useCanvasContextMenuAddActions({
     fileInputRef.current?.click()
   }, [getMenuPosition])
 
+  const handleAddVideo = useCallback(() => {
+    const position = getMenuPosition()
+    if (!position) return
+
+    setPendingPosition(position)
+    videoInputRef.current?.click()
+  }, [getMenuPosition])
+
   const handleImageFileChange = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0]
@@ -104,6 +115,24 @@ export function useCanvasContextMenuAddActions({
     [addFileNode, canvasId, pendingPosition]
   )
 
+  const handleVideoChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      event.target.value = ''
+
+      if (!file || !pendingPosition) return
+
+      try {
+        await addVideoNode({ file, canvasId, position: pendingPosition })
+      } catch {
+        // Error already shown via toast in hook
+      } finally {
+        setPendingPosition(null)
+      }
+    },
+    [addVideoNode, canvasId, pendingPosition]
+  )
+
   const controls = (
     <>
       <input
@@ -118,6 +147,13 @@ export function useCanvasContextMenuAddActions({
         type="file"
         accept={SUPPORTED_FILE_EXTENSIONS.map((ext: string) => `.${ext}`).join(',')}
         onChange={handleFileChange}
+        className="hidden"
+      />
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept={SUPPORTED_VIDEO_EXTENSIONS.map((ext: string) => `.${ext}`).join(',')}
+        onChange={handleVideoChange}
         className="hidden"
       />
       <AddLinkModal
@@ -136,5 +172,6 @@ export function useCanvasContextMenuAddActions({
     handleAddLink,
     handleAddImage,
     handleAddFile,
+    handleAddVideo,
   }
 }
