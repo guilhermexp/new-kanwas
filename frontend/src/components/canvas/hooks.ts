@@ -15,6 +15,9 @@ import type {
   LinkNodeData,
   TextNodeData,
   StickyNoteNodeData,
+  ChecklistNodeData,
+  KanbanNodeData,
+  SketchNodeData,
 } from 'shared'
 import {
   calculateItemPosition,
@@ -27,6 +30,9 @@ import {
   LINK_NODE_LAYOUT,
   TEXT_NODE_LAYOUT,
   STICKY_NOTE_NODE_LAYOUT,
+  CHECKLIST_NODE_LAYOUT,
+  KANBAN_NODE_LAYOUT,
+  SKETCH_NODE_LAYOUT,
   MAX_IMAGE_SIZE_BYTES,
   calculateImageDisplaySize,
   SUPPORTED_FILE_EXTENSIONS,
@@ -158,6 +164,57 @@ async function getImageDimensions(file: File): Promise<{ width: number; height: 
     }
     img.src = URL.createObjectURL(file)
   })
+}
+
+function createDefaultChecklistData(): ChecklistNodeData {
+  return {
+    items: [
+      {
+        id: crypto.randomUUID(),
+        text: 'New item',
+        checked: false,
+        depth: 0,
+      },
+    ],
+  }
+}
+
+function createDefaultKanbanData(): KanbanNodeData {
+  return {
+    fields: [],
+    columns: [
+      {
+        id: crypto.randomUUID(),
+        title: 'TO-DO',
+        description: 'Tasks to do',
+        color: '#1d4ed8',
+        workflowState: 'todo',
+        tasks: [
+          {
+            id: crypto.randomUUID(),
+            text: 'New task',
+            checked: false,
+          },
+        ],
+      },
+      {
+        id: crypto.randomUUID(),
+        title: 'In Progress',
+        description: 'Tasks being worked on',
+        color: '#ea580c',
+        workflowState: 'in-progress',
+        tasks: [],
+      },
+      {
+        id: crypto.randomUUID(),
+        title: 'Done',
+        description: 'Completed tasks',
+        color: '#16a34a',
+        workflowState: 'done',
+        tasks: [],
+      },
+    ],
+  }
 }
 
 export const useSelectNode = () => {
@@ -983,6 +1040,147 @@ export const useAddStickyNote = () => {
       return nodeId
     },
     [store, yDoc, workspaceUndoController, auditActor]
+  )
+}
+
+export const useAddChecklistNode = () => {
+  const { store } = useContext(WorkspaceContext)!
+  const { user } = useAuthState()
+  const auditActor = createUserAuditActor(user?.id)
+
+  return useCallback(
+    (options: {
+      items?: ChecklistNodeData['items']
+      accentColor?: string
+      canvasId?: string
+      position?: { x: number; y: number }
+    }): string | null => {
+      const targetCanvas = findTargetCanvas(store.root, options.canvasId)
+      if (!targetCanvas) {
+        showToast('No canvas found', 'error')
+        return null
+      }
+
+      const nodeItems = targetCanvas.items.filter((i) => i.kind === 'node')
+      const position =
+        options.position ??
+        calculateItemPosition(nodeItems, { direction: 'horizontal', defaultSize: CHECKLIST_NODE_LAYOUT.WIDTH })
+
+      const nodeId = crypto.randomUUID()
+      const nodeName = getUniqueNameForNewNode(targetCanvas, 'checklist', { type: 'checklist' })
+      const checklistData: ChecklistNodeData = options.items
+        ? { items: options.items, ...(options.accentColor ? { accentColor: options.accentColor } : {}) }
+        : { ...createDefaultChecklistData(), ...(options.accentColor ? { accentColor: options.accentColor } : {}) }
+
+      const nowIso = new Date().toISOString()
+      const newNodeItem: NodeItem = {
+        id: nodeId,
+        name: nodeName,
+        kind: 'node' as const,
+        collapsed: false as const,
+        xynode: {
+          id: nodeId,
+          type: 'checklist' as const,
+          position,
+          data: checklistData,
+          initialWidth: CHECKLIST_NODE_LAYOUT.DEFAULT_MEASURED.width,
+          initialHeight: CHECKLIST_NODE_LAYOUT.DEFAULT_MEASURED.height,
+        },
+      }
+
+      appendNodeWithCreateAudit(targetCanvas, newNodeItem, auditActor, nowIso)
+      return nodeId
+    },
+    [store, auditActor]
+  )
+}
+
+export const useAddKanbanNode = () => {
+  const { store } = useContext(WorkspaceContext)!
+  const { user } = useAuthState()
+  const auditActor = createUserAuditActor(user?.id)
+
+  return useCallback(
+    (options: { data?: KanbanNodeData; canvasId?: string; position?: { x: number; y: number } }): string | null => {
+      const targetCanvas = findTargetCanvas(store.root, options.canvasId)
+      if (!targetCanvas) {
+        showToast('No canvas found', 'error')
+        return null
+      }
+
+      const nodeItems = targetCanvas.items.filter((i) => i.kind === 'node')
+      const position =
+        options.position ??
+        calculateItemPosition(nodeItems, { direction: 'horizontal', defaultSize: KANBAN_NODE_LAYOUT.WIDTH })
+
+      const nodeId = crypto.randomUUID()
+      const nodeName = getUniqueNameForNewNode(targetCanvas, 'kanban', { type: 'kanban' })
+      const kanbanData = options.data ?? createDefaultKanbanData()
+
+      const nowIso = new Date().toISOString()
+      const newNodeItem: NodeItem = {
+        id: nodeId,
+        name: nodeName,
+        kind: 'node' as const,
+        collapsed: false as const,
+        xynode: {
+          id: nodeId,
+          type: 'kanban' as const,
+          position,
+          data: kanbanData,
+          initialWidth: KANBAN_NODE_LAYOUT.DEFAULT_MEASURED.width,
+          initialHeight: KANBAN_NODE_LAYOUT.DEFAULT_MEASURED.height,
+        },
+      }
+
+      appendNodeWithCreateAudit(targetCanvas, newNodeItem, auditActor, nowIso)
+      return nodeId
+    },
+    [store, auditActor]
+  )
+}
+
+export const useAddSketchNode = () => {
+  const { store } = useContext(WorkspaceContext)!
+  const { user } = useAuthState()
+  const auditActor = createUserAuditActor(user?.id)
+
+  return useCallback(
+    (options: { data?: SketchNodeData; canvasId?: string; position?: { x: number; y: number } }): string | null => {
+      const targetCanvas = findTargetCanvas(store.root, options.canvasId)
+      if (!targetCanvas) {
+        showToast('No canvas found', 'error')
+        return null
+      }
+
+      const nodeItems = targetCanvas.items.filter((i) => i.kind === 'node')
+      const position =
+        options.position ??
+        calculateItemPosition(nodeItems, { direction: 'horizontal', defaultSize: SKETCH_NODE_LAYOUT.WIDTH })
+
+      const nodeId = crypto.randomUUID()
+      const nodeName = getUniqueNameForNewNode(targetCanvas, 'sketch', { type: 'sketch' })
+
+      const nowIso = new Date().toISOString()
+      const newNodeItem: NodeItem = {
+        id: nodeId,
+        name: nodeName,
+        kind: 'node' as const,
+        collapsed: false as const,
+        xynode: {
+          id: nodeId,
+          type: 'sketch' as const,
+          position,
+          data: options.data ?? {},
+          initialWidth: SKETCH_NODE_LAYOUT.DEFAULT_MEASURED.width,
+          initialHeight: SKETCH_NODE_LAYOUT.DEFAULT_MEASURED.height,
+        },
+      }
+
+      appendNodeWithCreateAudit(targetCanvas, newNodeItem, auditActor, nowIso)
+      return nodeId
+    },
+    [store, auditActor]
   )
 }
 

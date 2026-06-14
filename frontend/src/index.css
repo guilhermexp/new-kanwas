@@ -1597,6 +1597,14 @@ body {
   box-shadow: var(--card-shadow);
 }
 
+.node-card-collapsed {
+  box-shadow: 0 8px 20px rgba(86, 75, 44, 0.08);
+}
+
+.dark .node-card-collapsed {
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
+}
+
 /* Selected node card — uniform 1px gold border around the whole card */
 .node-card-selected {
   border-color: var(--card-border-accent) !important;

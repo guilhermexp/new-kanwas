@@ -166,6 +166,90 @@ export type StickyNoteNodeData = {
 
 export type StickyNoteNode = XYFlowNode<StickyNoteNodeData, 'stickyNote'>
 
+export type ChecklistItem = {
+  id: string
+  text: string
+  checked: boolean
+  depth?: number
+}
+
+export type ChecklistNodeData = {
+  items: ChecklistItem[]
+  accentColor?: string
+  audit?: AuditFields
+} & SectionMembershipFields
+
+export type ChecklistNode = XYFlowNode<ChecklistNodeData, 'checklist'>
+
+export type KanbanFieldType = 'text' | 'date' | 'select' | 'number'
+export type KanbanTaskRelationType = 'blocked-by' | 'related'
+export type KanbanWorkflowState = 'todo' | 'in-progress' | 'done'
+
+export type KanbanFieldOption = {
+  id: string
+  label: string
+  color?: string
+}
+
+export type KanbanField = {
+  id: string
+  name: string
+  type: KanbanFieldType
+  visible?: boolean
+  options?: KanbanFieldOption[]
+}
+
+export type KanbanTaskDependency = {
+  taskId: string
+  relationType: KanbanTaskRelationType
+  title?: string
+}
+
+export type KanbanTask = {
+  id: string
+  text: string
+  checked: boolean
+  description?: string
+  /**
+   * Current Kanwas UI stores assignees as a free-text display name. The id
+   * fields are optional interoperability hooks for future user-backed pickers
+   * and are not kept in sync automatically.
+   */
+  assigneeId?: string
+  assigneeIds?: string[]
+  assigneeName?: string
+  fields?: Record<string, string | undefined>
+  dependencies?: KanbanTaskDependency[]
+}
+
+export type KanbanColumn = {
+  id: string
+  title: string
+  tasks: KanbanTask[]
+  color?: string
+  description?: string
+  workflowState?: KanbanWorkflowState
+}
+
+export type KanbanNodeData = {
+  columns: KanbanColumn[]
+  fields: KanbanField[]
+  audit?: AuditFields
+} & SectionMembershipFields
+
+export type KanbanNode = XYFlowNode<KanbanNodeData, 'kanban'>
+
+export type SketchNodeData = {
+  excalidrawElements?: unknown[]
+  excalidrawFiles?: Record<string, unknown>
+  excalidrawSvg?: string
+  excalidrawSvgLight?: string
+  excalidrawSvgDark?: string
+  audit?: AuditFields
+} & SectionMembershipFields
+
+export type SketchNode = XYFlowNode<SketchNodeData, 'sketch'>
+
 // Canvas node data (for the visual representation of a canvas on its parent)
 export type CanvasNodeData = {
   // Can be extended with preview data, item count, etc.
@@ -183,6 +267,9 @@ export type XyNode =
   | LinkNode
   | TextNode
   | StickyNoteNode
+  | ChecklistNode
+  | KanbanNode
+  | SketchNode
 
 // ============================================================================
 // WORKSPACE TREE STRUCTURE

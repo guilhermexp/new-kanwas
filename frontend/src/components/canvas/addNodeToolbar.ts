@@ -1,4 +1,15 @@
-export type ToolKind = 'document' | 'text' | 'sticky' | 'image' | 'file' | 'audio' | 'link' | 'section'
+export type ToolKind =
+  | 'document'
+  | 'text'
+  | 'sticky'
+  | 'checklist'
+  | 'kanban'
+  | 'sketch'
+  | 'image'
+  | 'file'
+  | 'audio'
+  | 'link'
+  | 'section'
 
 export interface ToolDef {
   kind: ToolKind
@@ -18,6 +29,9 @@ export const PRIMARY_TOOLS: ToolDef[] = [
 ]
 
 export const MORE_TOOLS: ToolDef[] = [
+  { kind: 'checklist', icon: 'fa-square-check', label: 'Checklist' },
+  { kind: 'kanban', icon: 'fa-table-columns', label: 'Kanban' },
+  { kind: 'sketch', icon: 'fa-pen-nib', label: 'Sketch' },
   { kind: 'section', icon: 'fa-rectangle-list', label: 'Create section' },
   { kind: 'image', icon: 'fa-image', label: 'Image' },
   { kind: 'file', icon: 'fa-file', label: 'File' },

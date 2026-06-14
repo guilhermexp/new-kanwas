@@ -2,11 +2,11 @@ import { useMemo } from 'react'
 import { useUI } from '@/store/useUIStore'
 
 export const useVisibleCanvasArea = () => {
-  const { sidebarWidth, sidebarOpen, chatWidth, zenMode, fullScreenMode } = useUI()
+  const { sidebarWidth, sidebarOpen, chatWidth, chatOpen, zenMode, fullScreenMode } = useUI()
 
   return useMemo(() => {
     const isNormalMode = !zenMode && !fullScreenMode
-    const leftOffset = isNormalMode ? chatWidth : 0
+    const leftOffset = chatOpen && isNormalMode ? chatWidth : 0
     const rightOffset = sidebarOpen && isNormalMode ? sidebarWidth : 0
     const availableWidth = window.innerWidth - leftOffset - rightOffset
     const availableHeight = window.innerHeight
@@ -19,5 +19,5 @@ export const useVisibleCanvasArea = () => {
       centerX: availableWidth / 2,
       centerY: availableHeight / 2,
     }
-  }, [sidebarWidth, sidebarOpen, chatWidth, zenMode, fullScreenMode])
+  }, [sidebarWidth, sidebarOpen, chatWidth, chatOpen, zenMode, fullScreenMode])
 }

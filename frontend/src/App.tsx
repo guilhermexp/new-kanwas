@@ -2,19 +2,18 @@ import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-
 import { useEffect } from 'react'
 import { fromUrlUuid } from '@/utils/uuid'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { PostHogProvider } from '@posthog/react'
 import { OAuthCallback } from '@/pages/OAuthCallback'
 import { ConnectionsCallback } from '@/pages/ConnectionsCallback'
 import { InviteAcceptPage } from '@/pages/InviteAcceptPage'
 import { CliAuthPage } from '@/pages/CliAuthPage'
+import { LoginPage } from '@/pages/LoginPage'
+import { RegisterPage } from '@/pages/RegisterPage'
 import { ThemeProvider } from '@/providers/theme'
 import { AuthProvider } from '@/providers/auth'
 import { KeyboardProvider } from '@/providers/keyboard'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { ToastContainer } from '@/components/ui/Toast'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
-import { PostHogTracker } from '@/providers/analytics/PostHogTracker'
-import { posthog } from '@/lib/analytics/posthog'
 import { WorkspacePage } from './pages/WorkspacePage'
 import { RootRedirect } from './pages/RootRedirect'
 import {
@@ -121,47 +120,44 @@ export default function App() {
       <ThemeProvider>
         <KeyboardProvider>
           <AuthProvider>
-            <PostHogProvider client={posthog}>
-              <BrowserRouter basename={basename}>
-                <PostHogTracker />
-                <ToastContainer />
-                <Routes>
-                  <Route path="/login" element={<Navigate to="/" replace />} />
-                  <Route path="/register" element={<Navigate to="/" replace />} />
-                  <Route path="/auth/callback" element={<OAuthCallback />} />
-                  <Route path="/invite/:token" element={<InviteAcceptPage />} />
-                  <Route path="/connections/callback" element={<ConnectionsCallback />} />
-                  <Route path="/embed" element={<EmbedBootstrap />} />
-                  <Route path="/share/:longHashId" element={<PublicDocumentSharePage />} />
-                  <Route
-                    path="/cli/authorize"
-                    element={
-                      <ProtectedRoute>
-                        <CliAuthPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/"
-                    element={
-                      <ProtectedRoute>
-                        <RootRedirect />
-                      </ProtectedRoute>
-                    }
-                  />
+            <BrowserRouter basename={basename}>
+              <ToastContainer />
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/auth/callback" element={<OAuthCallback />} />
+                <Route path="/invite/:token" element={<InviteAcceptPage />} />
+                <Route path="/connections/callback" element={<ConnectionsCallback />} />
+                <Route path="/embed" element={<EmbedBootstrap />} />
+                <Route path="/share/:longHashId" element={<PublicDocumentSharePage />} />
+                <Route
+                  path="/cli/authorize"
+                  element={
+                    <ProtectedRoute>
+                      <CliAuthPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <RootRedirect />
+                    </ProtectedRoute>
+                  }
+                />
 
-                  {/* Workspace route */}
-                  <Route
-                    path="/w/:workspaceId/*"
-                    element={
-                      <ProtectedRoute>
-                        <WorkspacePageWrapper />
-                      </ProtectedRoute>
-                    }
-                  />
-                </Routes>
-              </BrowserRouter>
-            </PostHogProvider>
+                {/* Workspace route */}
+                <Route
+                  path="/w/:workspaceId/*"
+                  element={
+                    <ProtectedRoute>
+                      <WorkspacePageWrapper />
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </BrowserRouter>
           </AuthProvider>
         </KeyboardProvider>
       </ThemeProvider>

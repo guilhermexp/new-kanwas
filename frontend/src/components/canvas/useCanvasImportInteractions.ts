@@ -12,6 +12,9 @@ import {
   useAddLinkNode,
   useAddTextNode,
   useAddStickyNote,
+  useAddChecklistNode,
+  useAddKanbanNode,
+  useAddSketchNode,
 } from './hooks'
 
 interface Position {
@@ -34,6 +37,9 @@ export function useCanvasImportInteractions({
   const addBlockNoteNodeFromImport = useAddBlockNoteNodeFromImport()
   const addTextNode = useAddTextNode()
   const addStickyNote = useAddStickyNote()
+  const addChecklistNode = useAddChecklistNode()
+  const addKanbanNode = useAddKanbanNode()
+  const addSketchNode = useAddSketchNode()
   const addImageNode = useAddImageNode()
   const addFileNode = useAddFileNode()
   const addAudioNode = useAddAudioNode()
@@ -242,6 +248,9 @@ export function useCanvasImportInteractions({
     addNode,
     addTextNode,
     addStickyNote,
+    addChecklistNode,
+    addKanbanNode,
+    addSketchNode,
     addImageNode,
     addFileNode,
     addLinkNode,

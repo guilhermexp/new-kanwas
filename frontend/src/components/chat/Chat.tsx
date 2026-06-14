@@ -183,7 +183,7 @@ export function Chat({
   const authState = useAuthState()
   const { activeCanvasId, setActiveCanvasId, store } = useWorkspace()
   const workspaceSnapshot = useWorkspaceSnapshot()
-  const { chatWidth, setChatWidth, agentFollowMode, setAgentFollowMode } = useUI()
+  const { chatWidth, setChatWidth, closeChat, agentFollowMode, setAgentFollowMode } = useUI()
   const visibleArea = useVisibleCanvasArea()
   const handleCanvasSelect = onCanvasSelect ?? setActiveCanvasId
 
@@ -749,6 +749,20 @@ export function Chat({
         : null,
     [editingMessage]
   )
+  const closeChatButton = (
+    <button
+      type="button"
+      onClick={closeChat}
+      className="group flex shrink-0 cursor-pointer items-center justify-center rounded p-1 pt-2 transition-colors"
+      aria-label="Close chat sidebar"
+      title="Close chat sidebar"
+    >
+      <i
+        className="fa-solid fa-sidebar text-sidebar-icon transition-colors group-hover:text-foreground"
+        style={{ fontSize: '14px' }}
+      />
+    </button>
+  )
 
   return (
     <aside
@@ -793,6 +807,7 @@ export function Chat({
               >
                 {userLlmHeaderLabel}
               </button>
+              {closeChatButton}
             </div>
           </div>
           {modifiedCanvases.length > 0 && (
@@ -848,6 +863,7 @@ export function Chat({
             onRetry={() => {
               void refetchTasks()
             }}
+            headerAction={closeChatButton}
           />
 
           <ChatInput

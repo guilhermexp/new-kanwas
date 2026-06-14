@@ -15,6 +15,12 @@ import type {
   SectionDef,
   TextNodeData,
   StickyNoteNodeData,
+  ChecklistItem,
+  ChecklistNodeData,
+  KanbanColumn,
+  KanbanField,
+  KanbanNodeData,
+  SketchNodeData,
   PendingCanvasPlacement,
 } from '../types.js'
 import { PathMapper, type PathMapping } from './path-mapper.js'
@@ -23,7 +29,10 @@ import {
   calculateItemPosition,
   sanitizeFilename,
   CANVAS_NODE_LAYOUT,
+  CHECKLIST_NODE_LAYOUT,
   IMAGE_NODE_LAYOUT,
+  KANBAN_NODE_LAYOUT,
+  SKETCH_NODE_LAYOUT,
 } from '../constants.js'
 import { getImageDimensionsFromBuffer } from '../image-utils.js'
 import { ContentConverter } from './content-converter.js'
@@ -41,6 +50,127 @@ import { sanitizeCanvasMetadata } from './metadata-sanitizer.js'
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function normalizeChecklistItems(raw: unknown): ChecklistItem[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((item): ChecklistItem | null => {
+      if (!isObjectRecord(item)) return null
+      if (typeof item.id !== 'string') return null
+      return {
+        id: item.id,
+        text: typeof item.text === 'string' ? item.text : '',
+        checked: Boolean(item.checked),
+        ...(typeof item.depth === 'number' && Number.isFinite(item.depth)
+          ? { depth: Math.max(0, Math.round(item.depth)) }
+          : {}),
+      }
+    })
+    .filter((item): item is ChecklistItem => item !== null)
+}
+
+function normalizeKanbanColumns(raw: unknown): KanbanColumn[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((column): KanbanColumn | null => {
+      if (!isObjectRecord(column)) return null
+      const id = typeof column.id === 'string' ? column.id : crypto.randomUUID()
+      const rawTasks = Array.isArray(column.tasks) ? column.tasks : []
+      const tasks = rawTasks
+        .map((task) => {
+          if (!isObjectRecord(task)) return null
+          if (typeof task.id !== 'string') return null
+          const rawFields = isObjectRecord(task.fields) ? task.fields : undefined
+          const fields = rawFields
+            ? Object.fromEntries(
+                Object.entries(rawFields).filter(([, value]) => value === undefined || typeof value === 'string')
+              )
+            : undefined
+          const dependencies = Array.isArray(task.dependencies)
+            ? task.dependencies
+                .map((dependency) => {
+                  if (!isObjectRecord(dependency) || typeof dependency.taskId !== 'string') return null
+                  return {
+                    taskId: dependency.taskId,
+                    relationType: dependency.relationType === 'related' ? 'related' : 'blocked-by',
+                    ...(typeof dependency.title === 'string' ? { title: dependency.title } : {}),
+                  }
+                })
+                .filter((dependency): dependency is NonNullable<typeof dependency> => dependency !== null)
+            : undefined
+          return {
+            id: task.id,
+            text: typeof task.text === 'string' ? task.text : '',
+            checked: Boolean(task.checked),
+            ...(typeof task.description === 'string' ? { description: task.description } : {}),
+            ...(typeof task.assigneeId === 'string' ? { assigneeId: task.assigneeId } : {}),
+            ...(Array.isArray(task.assigneeIds)
+              ? { assigneeIds: task.assigneeIds.filter((assignee): assignee is string => typeof assignee === 'string') }
+              : {}),
+            ...(typeof task.assigneeName === 'string' ? { assigneeName: task.assigneeName } : {}),
+            ...(fields ? { fields: fields as Record<string, string | undefined> } : {}),
+            ...(dependencies && dependencies.length > 0 ? { dependencies } : {}),
+          }
+        })
+        .filter((task): task is KanbanColumn['tasks'][number] => task !== null)
+
+      return {
+        id,
+        title: typeof column.title === 'string' ? column.title : 'Column',
+        tasks,
+        ...(typeof column.color === 'string' ? { color: column.color } : {}),
+        ...(typeof column.description === 'string' ? { description: column.description } : {}),
+        ...(column.workflowState === 'todo' || column.workflowState === 'in-progress' || column.workflowState === 'done'
+          ? { workflowState: column.workflowState }
+          : {}),
+      }
+    })
+    .filter((column): column is KanbanColumn => column !== null)
+}
+
+function normalizeKanbanFields(raw: unknown): KanbanField[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((field): KanbanField | null => {
+      if (!isObjectRecord(field)) return null
+      if (typeof field.id !== 'string') return null
+      const type =
+        field.type === 'date' || field.type === 'select' || field.type === 'number' || field.type === 'text'
+          ? field.type
+          : 'text'
+      return {
+        id: field.id,
+        name: typeof field.name === 'string' ? field.name : '',
+        type,
+        visible: typeof field.visible === 'boolean' ? field.visible : true,
+        ...(Array.isArray(field.options)
+          ? {
+              options: field.options
+                .map((option) => {
+                  if (!isObjectRecord(option)) return null
+                  return {
+                    id: typeof option.id === 'string' ? option.id : crypto.randomUUID(),
+                    label: typeof option.label === 'string' ? option.label : '',
+                    ...(typeof option.color === 'string' ? { color: option.color } : {}),
+                  }
+                })
+                .filter((option): option is NonNullable<typeof option> => option !== null),
+            }
+          : {}),
+      }
+    })
+    .filter((field): field is KanbanField => field !== null)
+}
+
+function normalizeSketchData(parsed: Record<string, unknown>): SketchNodeData {
+  return {
+    ...(Array.isArray(parsed.excalidrawElements) ? { excalidrawElements: parsed.excalidrawElements } : {}),
+    ...(isObjectRecord(parsed.excalidrawFiles) ? { excalidrawFiles: parsed.excalidrawFiles } : {}),
+    ...(typeof parsed.excalidrawSvg === 'string' ? { excalidrawSvg: parsed.excalidrawSvg } : {}),
+    ...(typeof parsed.excalidrawSvgLight === 'string' ? { excalidrawSvgLight: parsed.excalidrawSvgLight } : {}),
+    ...(typeof parsed.excalidrawSvgDark === 'string' ? { excalidrawSvgDark: parsed.excalidrawSvgDark } : {}),
+  }
 }
 
 export interface FileChange {
@@ -288,6 +418,12 @@ export class FilesystemSyncer {
         result = await this.syncStickyNoteFile(change)
       } else if (change.path.endsWith('.text.yaml')) {
         result = await this.syncTextFile(change)
+      } else if (change.path.endsWith('.checklist.yaml')) {
+        result = await this.syncChecklistFile(change)
+      } else if (change.path.endsWith('.kanban.yaml')) {
+        result = await this.syncKanbanFile(change)
+      } else if (change.path.endsWith('.sketch.yaml')) {
+        result = await this.syncSketchFile(change)
       } else if (change.path.endsWith('.url.yaml')) {
         // Check for .url.yaml files BEFORE .md check (compound extension)
         result = await this.syncUrlFile(change)
@@ -1191,6 +1327,331 @@ export class FilesystemSyncer {
   }
 
   // ============================================================================
+  // CHECKLIST FILE SYNC (.checklist.yaml)
+  // ============================================================================
+
+  private async syncChecklistFile(change: FileChange): Promise<SyncResult> {
+    const mapping = this.pathMapper.getMapping(change.path)
+
+    switch (change.type) {
+      case 'create':
+        if (mapping) return this.updateChecklistNode(mapping, change)
+        return this.createChecklistNode(change)
+      case 'update':
+        if (!mapping) return this.createChecklistNode(change)
+        return this.updateChecklistNode(mapping, change)
+      case 'delete':
+        if (!mapping) return { success: true, action: 'no_op' }
+        return await this.deleteNode(mapping)
+    }
+  }
+
+  private createChecklistNode(change: FileChange): SyncResult {
+    let parsed: Record<string, unknown>
+    try {
+      const value = yaml.parse(change.content || '') || {}
+      parsed = isObjectRecord(value) ? value : {}
+    } catch {
+      return { success: false, action: 'error', error: 'Invalid YAML in .checklist.yaml file' }
+    }
+
+    const parentInfo = this.pathMapper.resolveNewFile(change.path)
+    if (!parentInfo) {
+      return { success: false, action: 'error', error: 'Cannot determine parent canvas for new checklist file' }
+    }
+
+    const canvas = this.findCanvasById(parentInfo.canvasId)
+    if (!canvas) {
+      return { success: false, action: 'error', error: `Parent canvas not found: ${parentInfo.canvasId}` }
+    }
+
+    const nodeId = crypto.randomUUID()
+    const nodeName = sanitizeFilename(parentInfo.nodeName.replace(/\.checklist\.yaml$/, ''))
+    const nodeData: ChecklistNodeData = {
+      items: normalizeChecklistItems(parsed.items),
+    }
+    if (typeof parsed.accentColor === 'string') nodeData.accentColor = parsed.accentColor
+
+    const nodeItem: NodeItem = {
+      kind: 'node',
+      id: nodeId,
+      name: nodeName,
+      collapsed: false,
+      xynode: {
+        id: nodeId,
+        type: 'checklist' as const,
+        position: { x: 0, y: 0 },
+        data: nodeData,
+        initialWidth: CHECKLIST_NODE_LAYOUT.DEFAULT_MEASURED.width,
+        initialHeight: CHECKLIST_NODE_LAYOUT.DEFAULT_MEASURED.height,
+      },
+    }
+
+    this.applySectionToNode(change, canvas, nodeItem)
+    this.markCreatedNodeForFrontendPlacement(change, nodeItem)
+    this.stampCreateAuditNode(nodeItem)
+    this.touchCanvas(canvas)
+    canvas.items.push(nodeItem)
+
+    this.pathMapper.addMapping({
+      path: change.path,
+      nodeId,
+      canvasId: parentInfo.canvasId,
+      originalName: nodeName,
+      type: 'node',
+    })
+
+    return { success: true, action: 'created_node', nodeId, canvasId: parentInfo.canvasId, node: nodeItem }
+  }
+
+  private updateChecklistNode(mapping: PathMapping, change: FileChange): SyncResult {
+    let parsed: Record<string, unknown>
+    try {
+      const value = yaml.parse(change.content || '') || {}
+      parsed = isObjectRecord(value) ? value : {}
+    } catch {
+      return { success: false, action: 'error', error: 'Invalid YAML in .checklist.yaml file' }
+    }
+
+    const canvas = this.findCanvasById(mapping.canvasId)
+    if (!canvas) {
+      return { success: false, action: 'error', error: `Parent canvas not found: ${mapping.canvasId}` }
+    }
+
+    const nodeItem = canvas.items.find((i): i is NodeItem => i.kind === 'node' && i.id === mapping.nodeId)
+    if (!nodeItem || nodeItem.xynode.type !== 'checklist') {
+      return { success: false, action: 'error', error: `Checklist node not found: ${mapping.nodeId}` }
+    }
+
+    const nodeData = nodeItem.xynode.data as ChecklistNodeData
+    nodeData.items = normalizeChecklistItems(parsed.items)
+    if (typeof parsed.accentColor === 'string') nodeData.accentColor = parsed.accentColor
+    else delete nodeData.accentColor
+
+    this.applySectionToNode(change, canvas, nodeItem)
+    this.touchNodeAndCanvas(nodeItem, canvas)
+    return { success: true, action: 'updated_content', nodeId: mapping.nodeId, canvasId: mapping.canvasId }
+  }
+
+  // ============================================================================
+  // KANBAN FILE SYNC (.kanban.yaml)
+  // ============================================================================
+
+  private async syncKanbanFile(change: FileChange): Promise<SyncResult> {
+    const mapping = this.pathMapper.getMapping(change.path)
+
+    switch (change.type) {
+      case 'create':
+        if (mapping) return this.updateKanbanNode(mapping, change)
+        return this.createKanbanNode(change)
+      case 'update':
+        if (!mapping) return this.createKanbanNode(change)
+        return this.updateKanbanNode(mapping, change)
+      case 'delete':
+        if (!mapping) return { success: true, action: 'no_op' }
+        return await this.deleteNode(mapping)
+    }
+  }
+
+  private createKanbanNode(change: FileChange): SyncResult {
+    let parsed: Record<string, unknown>
+    try {
+      const value = yaml.parse(change.content || '') || {}
+      parsed = isObjectRecord(value) ? value : {}
+    } catch {
+      return { success: false, action: 'error', error: 'Invalid YAML in .kanban.yaml file' }
+    }
+
+    const parentInfo = this.pathMapper.resolveNewFile(change.path)
+    if (!parentInfo) {
+      return { success: false, action: 'error', error: 'Cannot determine parent canvas for new kanban file' }
+    }
+
+    const canvas = this.findCanvasById(parentInfo.canvasId)
+    if (!canvas) {
+      return { success: false, action: 'error', error: `Parent canvas not found: ${parentInfo.canvasId}` }
+    }
+
+    const nodeId = crypto.randomUUID()
+    const nodeName = sanitizeFilename(parentInfo.nodeName.replace(/\.kanban\.yaml$/, ''))
+    const nodeData: KanbanNodeData = {
+      columns: normalizeKanbanColumns(parsed.columns),
+      fields: normalizeKanbanFields(parsed.fields),
+    }
+
+    const nodeItem: NodeItem = {
+      kind: 'node',
+      id: nodeId,
+      name: nodeName,
+      collapsed: false,
+      xynode: {
+        id: nodeId,
+        type: 'kanban' as const,
+        position: { x: 0, y: 0 },
+        data: nodeData,
+        initialWidth: KANBAN_NODE_LAYOUT.DEFAULT_MEASURED.width,
+        initialHeight: KANBAN_NODE_LAYOUT.DEFAULT_MEASURED.height,
+      },
+    }
+
+    this.applySectionToNode(change, canvas, nodeItem)
+    this.markCreatedNodeForFrontendPlacement(change, nodeItem)
+    this.stampCreateAuditNode(nodeItem)
+    this.touchCanvas(canvas)
+    canvas.items.push(nodeItem)
+
+    this.pathMapper.addMapping({
+      path: change.path,
+      nodeId,
+      canvasId: parentInfo.canvasId,
+      originalName: nodeName,
+      type: 'node',
+    })
+
+    return { success: true, action: 'created_node', nodeId, canvasId: parentInfo.canvasId, node: nodeItem }
+  }
+
+  private updateKanbanNode(mapping: PathMapping, change: FileChange): SyncResult {
+    let parsed: Record<string, unknown>
+    try {
+      const value = yaml.parse(change.content || '') || {}
+      parsed = isObjectRecord(value) ? value : {}
+    } catch {
+      return { success: false, action: 'error', error: 'Invalid YAML in .kanban.yaml file' }
+    }
+
+    const canvas = this.findCanvasById(mapping.canvasId)
+    if (!canvas) {
+      return { success: false, action: 'error', error: `Parent canvas not found: ${mapping.canvasId}` }
+    }
+
+    const nodeItem = canvas.items.find((i): i is NodeItem => i.kind === 'node' && i.id === mapping.nodeId)
+    if (!nodeItem || nodeItem.xynode.type !== 'kanban') {
+      return { success: false, action: 'error', error: `Kanban node not found: ${mapping.nodeId}` }
+    }
+
+    const nodeData = nodeItem.xynode.data as KanbanNodeData
+    nodeData.columns = normalizeKanbanColumns(parsed.columns)
+    nodeData.fields = normalizeKanbanFields(parsed.fields)
+
+    this.applySectionToNode(change, canvas, nodeItem)
+    this.touchNodeAndCanvas(nodeItem, canvas)
+    return { success: true, action: 'updated_content', nodeId: mapping.nodeId, canvasId: mapping.canvasId }
+  }
+
+  // ============================================================================
+  // SKETCH FILE SYNC (.sketch.yaml)
+  // ============================================================================
+
+  private async syncSketchFile(change: FileChange): Promise<SyncResult> {
+    const mapping = this.pathMapper.getMapping(change.path)
+
+    switch (change.type) {
+      case 'create':
+        if (mapping) return this.updateSketchNode(mapping, change)
+        return this.createSketchNode(change)
+      case 'update':
+        if (!mapping) return this.createSketchNode(change)
+        return this.updateSketchNode(mapping, change)
+      case 'delete':
+        if (!mapping) return { success: true, action: 'no_op' }
+        return await this.deleteNode(mapping)
+    }
+  }
+
+  private createSketchNode(change: FileChange): SyncResult {
+    let parsed: Record<string, unknown>
+    try {
+      const value = yaml.parse(change.content || '') || {}
+      parsed = isObjectRecord(value) ? value : {}
+    } catch {
+      return { success: false, action: 'error', error: 'Invalid YAML in .sketch.yaml file' }
+    }
+
+    const parentInfo = this.pathMapper.resolveNewFile(change.path)
+    if (!parentInfo) {
+      return { success: false, action: 'error', error: 'Cannot determine parent canvas for new sketch file' }
+    }
+
+    const canvas = this.findCanvasById(parentInfo.canvasId)
+    if (!canvas) {
+      return { success: false, action: 'error', error: `Parent canvas not found: ${parentInfo.canvasId}` }
+    }
+
+    const nodeId = crypto.randomUUID()
+    const nodeName = sanitizeFilename(parentInfo.nodeName.replace(/\.sketch\.yaml$/, ''))
+    const nodeData = normalizeSketchData(parsed)
+
+    const nodeItem: NodeItem = {
+      kind: 'node',
+      id: nodeId,
+      name: nodeName,
+      collapsed: false,
+      xynode: {
+        id: nodeId,
+        type: 'sketch' as const,
+        position: { x: 0, y: 0 },
+        data: nodeData,
+        initialWidth: SKETCH_NODE_LAYOUT.DEFAULT_MEASURED.width,
+        initialHeight: SKETCH_NODE_LAYOUT.DEFAULT_MEASURED.height,
+      },
+    }
+
+    this.applySectionToNode(change, canvas, nodeItem)
+    this.markCreatedNodeForFrontendPlacement(change, nodeItem)
+    this.stampCreateAuditNode(nodeItem)
+    this.touchCanvas(canvas)
+    canvas.items.push(nodeItem)
+
+    this.pathMapper.addMapping({
+      path: change.path,
+      nodeId,
+      canvasId: parentInfo.canvasId,
+      originalName: nodeName,
+      type: 'node',
+    })
+
+    return { success: true, action: 'created_node', nodeId, canvasId: parentInfo.canvasId, node: nodeItem }
+  }
+
+  private updateSketchNode(mapping: PathMapping, change: FileChange): SyncResult {
+    let parsed: Record<string, unknown>
+    try {
+      const value = yaml.parse(change.content || '') || {}
+      parsed = isObjectRecord(value) ? value : {}
+    } catch {
+      return { success: false, action: 'error', error: 'Invalid YAML in .sketch.yaml file' }
+    }
+
+    const canvas = this.findCanvasById(mapping.canvasId)
+    if (!canvas) {
+      return { success: false, action: 'error', error: `Parent canvas not found: ${mapping.canvasId}` }
+    }
+
+    const nodeItem = canvas.items.find((i): i is NodeItem => i.kind === 'node' && i.id === mapping.nodeId)
+    if (!nodeItem || nodeItem.xynode.type !== 'sketch') {
+      return { success: false, action: 'error', error: `Sketch node not found: ${mapping.nodeId}` }
+    }
+
+    const nodeData = nodeItem.xynode.data as SketchNodeData
+    const normalized = normalizeSketchData(parsed)
+    if (normalized.excalidrawElements !== undefined) nodeData.excalidrawElements = normalized.excalidrawElements
+    else delete nodeData.excalidrawElements
+    if (normalized.excalidrawFiles !== undefined) nodeData.excalidrawFiles = normalized.excalidrawFiles
+    else delete nodeData.excalidrawFiles
+    if (normalized.excalidrawSvg !== undefined) nodeData.excalidrawSvg = normalized.excalidrawSvg
+    else delete nodeData.excalidrawSvg
+    if (normalized.excalidrawSvgLight !== undefined) nodeData.excalidrawSvgLight = normalized.excalidrawSvgLight
+    else delete nodeData.excalidrawSvgLight
+    if (normalized.excalidrawSvgDark !== undefined) nodeData.excalidrawSvgDark = normalized.excalidrawSvgDark
+    else delete nodeData.excalidrawSvgDark
+
+    this.applySectionToNode(change, canvas, nodeItem)
+    this.touchNodeAndCanvas(nodeItem, canvas)
+    return { success: true, action: 'updated_content', nodeId: mapping.nodeId, canvasId: mapping.canvasId }
+  }
+
+  // ============================================================================
   // BINARY FILE SYNC
   // ============================================================================
 
@@ -1868,15 +2329,23 @@ export class FilesystemSyncer {
     }
   }
 
-  private classifyNodePath(path: string): 'markdown' | 'text' | 'sticky' | 'url' | 'binary' | null {
+  private classifyNodePath(
+    path: string
+  ): 'markdown' | 'text' | 'sticky' | 'checklist' | 'kanban' | 'sketch' | 'url' | 'binary' | null {
     if (path.endsWith('.sticky.yaml')) return 'sticky'
     if (path.endsWith('.text.yaml')) return 'text'
+    if (path.endsWith('.checklist.yaml')) return 'checklist'
+    if (path.endsWith('.kanban.yaml')) return 'kanban'
+    if (path.endsWith('.sketch.yaml')) return 'sketch'
     if (path.endsWith('.url.yaml')) return 'url'
     if (path.endsWith('.md')) return 'markdown'
     return this.getBinaryFileInfo(path) ? 'binary' : null
   }
 
-  private stripNodeExtension(filename: string, nodeKind: 'markdown' | 'text' | 'sticky' | 'url' | 'binary'): string {
+  private stripNodeExtension(
+    filename: string,
+    nodeKind: 'markdown' | 'text' | 'sticky' | 'checklist' | 'kanban' | 'sketch' | 'url' | 'binary'
+  ): string {
     switch (nodeKind) {
       case 'markdown':
         return filename.replace(/\.md$/, '')
@@ -1884,6 +2353,12 @@ export class FilesystemSyncer {
         return filename.replace(/\.text\.yaml$/, '')
       case 'sticky':
         return filename.replace(/\.sticky\.yaml$/, '')
+      case 'checklist':
+        return filename.replace(/\.checklist\.yaml$/, '')
+      case 'kanban':
+        return filename.replace(/\.kanban\.yaml$/, '')
+      case 'sketch':
+        return filename.replace(/\.sketch\.yaml$/, '')
       case 'url':
         return filename.replace(/\.url\.yaml$/, '')
       case 'binary': {

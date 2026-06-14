@@ -312,6 +312,24 @@ export const STICKY_NOTE_NODE_LAYOUT = {
   DEFAULT_MEASURED: { width: 240, height: 240 },
 } as const
 
+export const CHECKLIST_NODE_LAYOUT = {
+  WIDTH: 360,
+  HEIGHT: 420,
+  DEFAULT_MEASURED: { width: 360, height: 420 },
+} as const
+
+export const KANBAN_NODE_LAYOUT = {
+  WIDTH: 820,
+  HEIGHT: 460,
+  DEFAULT_MEASURED: { width: 820, height: 460 },
+} as const
+
+export const SKETCH_NODE_LAYOUT = {
+  WIDTH: 520,
+  HEIGHT: 360,
+  DEFAULT_MEASURED: { width: 520, height: 360 },
+} as const
+
 /** Supported audio extensions (browser-playable) */
 export const SUPPORTED_AUDIO_EXTENSIONS = [
   'mp3',

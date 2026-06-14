@@ -2,11 +2,15 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import UserConfigService from '#services/user_config_service'
 import vine from '@vinejs/vine'
+import { EXECUTION_ENGINE_PRESET_IDS } from 'shared/execution-config'
 
 const updateConfigValidator = vine.compile(
   vine.object({
     dismissedTipIds: vine.array(vine.string()).optional(),
-    executionEngine: vine.enum(['vercel-ai', 'claude-sdk', 'codex']).nullable().optional(),
+    executionEngine: vine
+      .enum([...EXECUTION_ENGINE_PRESET_IDS])
+      .nullable()
+      .optional(),
     language: vine.enum(['en', 'pt']).nullable().optional(),
   })
 )

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n from '@/i18n'
 import type { WorkspaceSuggestedTask } from '@/api/suggestedTasks'
@@ -30,6 +30,7 @@ interface TaskListProps {
   onTaskHover?: (task: TaskListItem) => void
   onCanvasSelect?: (canvasId: string) => void
   onRetry: () => void
+  headerAction?: ReactNode
 }
 
 const RUNNING_STATUSES: TaskListItem['status'][] = ['initiated', 'processing']
@@ -426,6 +427,7 @@ export function TaskList({
   onTaskHover,
   onCanvasSelect,
   onRetry,
+  headerAction,
 }: TaskListProps) {
   const { t } = useTranslation()
   const [randomTip] = useState(() => {
@@ -456,8 +458,9 @@ export function TaskList({
   const resolvedDeletingSuggestedTaskIds = deletingSuggestedTaskIds ?? EMPTY_PENDING_IDS
 
   const header = (
-    <div className="px-4 pt-[18px] pb-2">
+    <div className="flex items-center justify-between gap-2 px-4 pt-[18px] pb-2">
       <span className="text-md font-bold text-foreground">{t('chat.tasks')}</span>
+      {headerAction}
     </div>
   )
 

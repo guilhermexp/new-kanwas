@@ -101,7 +101,16 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
   // Keep activeCanvasId in ref for stable callbacks (prevents react-arborist drag breakage)
   const activeCanvasIdRef = useRef<string | null>(activeCanvasId)
   activeCanvasIdRef.current = activeCanvasId
-  const { zenMode, fullScreenMode, sidebarOpen, sidebarWidth, toggleSidebar, disableFullScreenMode } = useUI()
+  const {
+    zenMode,
+    fullScreenMode,
+    sidebarOpen,
+    chatOpen,
+    sidebarWidth,
+    toggleSidebar,
+    openChat,
+    disableFullScreenMode,
+  } = useUI()
   // rootRef holds the live proxy — always has current data
   const rootRef = useRef<CanvasItem | null>(store.root as CanvasItem | null)
   rootRef.current = store.root as CanvasItem | null
@@ -727,7 +736,7 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
                 />
 
                 <div style={{ display: 'flex', width: '100%', height: '100%' }}>
-                  {!zenMode && !fullScreenMode && (
+                  {!zenMode && !fullScreenMode && chatOpen && (
                     <Chat
                       workspaceId={workspaceId}
                       onboardingStatus={workspace?.onboardingStatus}
@@ -771,6 +780,18 @@ function WorkspaceContent({ routeCanvasPath, workspace }: { routeCanvasPath: str
                           </button>
                         )}
                       </div>
+                      {!chatOpen && !zenMode && !fullScreenMode && (
+                        <div className="absolute top-4 left-4 z-50 flex items-center">
+                          <button
+                            onClick={openChat}
+                            className="canvas-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
+                            aria-label="Open chat sidebar"
+                            title="Open chat sidebar"
+                          >
+                            <i className="fa-solid fa-sidebar text-sm text-foreground" />
+                          </button>
+                        </div>
+                      )}
 
                       {mutableCanvas ? (
                         <CanvasFlow

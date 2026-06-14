@@ -8,6 +8,9 @@ interface CanvasContextMenuProps {
   onAddDocument: () => void
   onAddStickyNote: () => void
   onAddTextNode: () => void
+  onAddChecklist: () => void
+  onAddKanban: () => void
+  onAddSketch: () => void
   onAddLink?: () => void
   onAddImage?: () => void
   onAddFile?: () => void
@@ -46,6 +49,9 @@ export const CanvasContextMenu = memo(function CanvasContextMenu({
   onAddDocument,
   onAddStickyNote,
   onAddTextNode,
+  onAddChecklist,
+  onAddKanban,
+  onAddSketch,
   onAddLink,
   onAddImage,
   onAddFile,
@@ -108,6 +114,30 @@ export const CanvasContextMenu = memo(function CanvasContextMenu({
               label="Add text"
               onClick={() => {
                 onAddTextNode()
+                onClose()
+              }}
+            />
+            <MenuItem
+              icon="fa-solid fa-square-check"
+              label="Add checklist"
+              onClick={() => {
+                onAddChecklist()
+                onClose()
+              }}
+            />
+            <MenuItem
+              icon="fa-solid fa-table-columns"
+              label="Add kanban"
+              onClick={() => {
+                onAddKanban()
+                onClose()
+              }}
+            />
+            <MenuItem
+              icon="fa-solid fa-pen-nib"
+              label="Add sketch"
+              onClick={() => {
+                onAddSketch()
                 onClose()
               }}
             />

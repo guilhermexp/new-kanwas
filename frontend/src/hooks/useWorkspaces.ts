@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/providers/auth'
-import { capturePostHogEvent } from '@/lib/analytics/posthog'
 import { showToast } from '@/utils/toast'
 import * as api from '@/api/workspaces'
 import type { Workspace } from '@/api/client'
@@ -45,10 +44,6 @@ export const useCreateWorkspace = (workspaceId?: string) => {
     mutationFn: (body: { name: string; workspaceId?: string }) =>
       api.createWorkspace(workspaceId ? { ...body, workspaceId } : body),
     onSuccess: (newWorkspace) => {
-      capturePostHogEvent('workspace created', {
-        workspace_id: newWorkspace.id,
-        workspace_name: newWorkspace.name,
-      })
       // Optimistically add to cache so WorkspacePageWrapper finds it before refetch completes
       qc.setQueryData<Workspace[]>(['workspaces'], (old) => (old ? [...old, newWorkspace] : [newWorkspace]))
       qc.invalidateQueries({ queryKey: ['workspaces'] })
@@ -90,11 +85,7 @@ export const useUpdateWorkspace = () => {
       if (ctx?.prevWorkspaces) qc.setQueryData(['workspaces'], ctx.prevWorkspaces)
       showToast('Failed to update workspace', 'error')
     },
-    onSuccess: (_updatedWorkspace, { id, name }) => {
-      capturePostHogEvent('workspace renamed', {
-        workspace_id: id,
-        workspace_name: name,
-      })
+    onSuccess: () => {
       showToast('Workspace updated successfully', 'success')
     },
     onSettled: (_d, _e, { id }) => {
@@ -122,10 +113,7 @@ export const useDeleteWorkspace = () => {
       if (ctx?.prev) qc.setQueryData(['workspaces'], ctx.prev)
       showToast('Failed to delete workspace', 'error')
     },
-    onSuccess: (_data, id) => {
-      capturePostHogEvent('workspace deleted', {
-        workspace_id: id,
-      })
+    onSuccess: () => {
       showToast('Workspace deleted successfully', 'success')
     },
     onSettled: (_d, _e, id) => {
@@ -141,12 +129,7 @@ export const useDuplicateWorkspace = () => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: api.duplicateWorkspace,
-    onSuccess: (newWorkspace, sourceWorkspaceId) => {
-      capturePostHogEvent('workspace duplicated', {
-        source_workspace_id: sourceWorkspaceId,
-        workspace_id: newWorkspace.id,
-        workspace_name: newWorkspace.name,
-      })
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['workspaces'] })
       qc.invalidateQueries({ queryKey: ['organization'] })
       showToast('Workspace duplicated successfully', 'success')

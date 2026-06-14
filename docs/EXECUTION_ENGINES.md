@@ -21,8 +21,9 @@ Two levels, in precedence order:
    (`executionEngine`) and is applied at invocation by `start_agent.ts`,
    overriding the env. Presets live in `shared/execution-config.ts`
    (`EXECUTION_ENGINE_PRESETS`) and also carry the model the engine should use
-   (e.g. Claude Code → `claude-opus-4-8`). The chat header badge reflects the
-   selected engine's model.
+   (e.g. Claude Code → `claude-opus-4-8`, Claude Code Fable →
+   `claude-fable-5`). The chat header badge reflects the selected engine's
+   model.
 2. **Env default** — `EXECUTION_ENGINE` is used for users with no per-user
    choice.
 

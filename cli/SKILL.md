@@ -7,7 +7,7 @@ description: Sync local files with a Kanwas workspace using the kanwas CLI. Use 
 
 > **Install as a Claude Code skill:** copy this file to `~/.claude/skills/kanwas-cli/SKILL.md` (user-wide) or `.claude/skills/kanwas-cli/SKILL.md` (per-project).
 
-`kanwas` is a CLI for syncing a Kanwas workspace with the local filesystem. Workspaces live as trees of canvases (directories) and nodes (files); markdown notes are `.md` files inside canvas directories.
+`kanwas` is a CLI for syncing a Kanwas workspace with the local filesystem. Workspaces live as trees of canvases (directories) and nodes (files); markdown notes are `.md` files inside canvas directories. Checklist, Kanban, Sketch, Text, Link, and Sticky nodes are typed YAML files.
 
 ## When to use
 
@@ -40,6 +40,7 @@ The interactive picker hangs in non-interactive shells. Always use `--id` or `--
 
 ```bash
 kanwas workspaces --json    # discover IDs and names
+kanwas new "QA Workspace"   # create and bind a new workspace in cwd
 kanwas pull --id <uuid>     # pin by UUID (preferred — names can repeat)
 kanwas pull --name "<name>" # pin by exact name
 ```
@@ -56,6 +57,55 @@ kanwas pull --id <uuid>
 ```
 
 Files appear under the current directory. A `.kanwas.json` is written that binds the directory to the workspace; subsequent `pull` / `push` reuse it.
+
+### Create a workspace for a real test
+
+```bash
+mkdir kanwas-qa && cd kanwas-qa
+kanwas new "QA Workspace"
+```
+
+Use typed files to create non-markdown nodes:
+
+```yaml
+# qa.checklist.yaml
+items:
+  - id: item-1
+    text: Confirm real persistence
+    checked: true
+    depth: 0
+```
+
+```yaml
+# qa.kanban.yaml
+fields:
+  - id: priority
+    name: Priority
+    type: select
+    visible: true
+    options:
+      - id: high
+        label: High
+        color: '#ef4444'
+columns:
+  - id: todo
+    title: To do
+    workflowState: todo
+    tasks:
+      - id: task-1
+        text: Persist Kanban task
+        checked: false
+        assigneeName: admin
+        fields:
+          priority: high
+```
+
+```yaml
+# qa.sketch.yaml
+excalidrawElements: []
+excalidrawFiles: {}
+excalidrawSvg: '<svg xmlns="http://www.w3.org/2000/svg"></svg>'
+```
 
 ### Push local edits back
 
@@ -101,6 +151,7 @@ kanwas pull --id <uuid>
 | Command                | Purpose                                                                |
 | ---------------------- | ---------------------------------------------------------------------- |
 | `kanwas login`         | Browser-based auth (interactive only)                                  |
+| `kanwas new <name>`    | Create a workspace and bind the current directory                      |
 | `kanwas workspaces`    | List workspaces; add `--json` for parsing                              |
 | `kanwas pull`          | Download workspace files; binds the directory via `.kanwas.json`       |
 | `kanwas push`          | Upload local edits; three-way diff with conflict prompts               |

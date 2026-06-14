@@ -241,9 +241,18 @@ export default class StartAgent {
 
       if (userConfig.executionEngine) {
         const preset = getExecutionEnginePreset(userConfig.executionEngine)
-        agent.overrideExecutionEngine(userConfig.executionEngine, preset?.model)
+        if (!preset) {
+          logger.warn({ executionEnginePreset: userConfig.executionEngine }, 'Unknown user execution engine preset')
+          return
+        }
+
+        agent.overrideExecutionEngine(preset.engine, preset.model)
         logger.info(
-          { executionEngine: userConfig.executionEngine, engineModel: preset?.model ?? null },
+          {
+            executionEngine: preset.engine,
+            executionEnginePreset: userConfig.executionEngine,
+            engineModel: preset.model,
+          },
           'Applied user execution engine'
         )
       }

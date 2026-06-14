@@ -5,19 +5,20 @@ import { pushCommand } from './commands/push.js'
 import { cleanCommand } from './commands/clean.js'
 import { workspacesCommand } from './commands/workspaces.js'
 import { importCommand } from './commands/import.js'
+import { newCommand } from './commands/new.js'
 
 const program = new Command()
 
 program
   .name('kanwas')
   .description('Sync local directories with Kanwas workspaces')
-  .version('0.2.0')
+  .version('0.3.0')
   .addHelpText(
     'after',
     `
 Workflow:
   1. kanwas login             Authenticate via browser
-  2. kanwas pull              Select and download a workspace
+  2. kanwas new "Name"        Create and bind a new workspace, or pull an existing one
   3. (edit files locally)
   4. kanwas push              Upload changes back
 
@@ -25,6 +26,7 @@ Auth is stored globally (~/.kanwas/config.json).
 Each project directory binds to one workspace via .kanwas.json.
 
 Use --id or --name flags with pull for non-interactive use (CI/agents).
+Checklist, Kanban, Sketch, Text, Link, and Sticky nodes sync as typed YAML files.
 Use "kanwas workspaces --json" to list workspaces programmatically.`
   )
 
@@ -43,6 +45,18 @@ program
         frontendUrl: opts.frontendUrl,
         yjsServerHost: opts.yjsServerHost,
       })
+    } catch (err) {
+      console.error(err instanceof Error ? err.message : err)
+      process.exit(1)
+    }
+  })
+
+program
+  .command('new <name>')
+  .description('Create a workspace and bind it to the current directory')
+  .action(async (name) => {
+    try {
+      await newCommand(name)
     } catch (err) {
       console.error(err instanceof Error ? err.message : err)
       process.exit(1)

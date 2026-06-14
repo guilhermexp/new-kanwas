@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { EXECUTION_ENGINE_PRESETS, DEFAULT_EXECUTION_ENGINE } from 'shared/execution-config'
-import type { ExecutionEngine } from 'shared/execution-config'
+import type { ExecutionEnginePresetId } from 'shared/execution-config'
 import { getUserConfig, updateUserConfig } from '@/api/userConfig'
 
 interface AgentEngineSectionProps {
@@ -24,7 +24,7 @@ export function AgentEngineSection({ isOpen }: AgentEngineSectionProps) {
   })
 
   const mutation = useMutation({
-    mutationFn: (engine: ExecutionEngine) => updateUserConfig({ executionEngine: engine }),
+    mutationFn: (engine: ExecutionEnginePresetId) => updateUserConfig({ executionEngine: engine }),
     onSuccess: (result) => {
       queryClient.setQueryData(['user-config'], result)
     },

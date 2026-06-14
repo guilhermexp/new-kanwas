@@ -1,6 +1,6 @@
 import type { LlmProviderName } from 'shared/llm-config'
 import { ANTHROPIC_DEFAULT_MODEL_TIERS, DEFAULT_LLM_PROVIDER, OPENAI_DEFAULT_MODEL_TIERS } from 'shared/llm-config'
-import type { ExecutionEngine } from 'shared/execution-config'
+import type { ExecutionEnginePresetId } from 'shared/execution-config'
 import { getExecutionEnginePreset } from 'shared/execution-config'
 
 import { tuyau } from './client'
@@ -11,13 +11,13 @@ export interface UserConfig {
   dismissedTipIds?: string[]
   llmProvider?: LlmProviderName | null
   llmModel?: string | null
-  executionEngine?: ExecutionEngine | null
+  executionEngine?: ExecutionEnginePresetId | null
   language?: AppLanguage | null
 }
 
 export interface UserConfigUpdate {
   dismissedTipIds?: string[]
-  executionEngine?: ExecutionEngine | null
+  executionEngine?: ExecutionEnginePresetId | null
   language?: AppLanguage | null
 }
 
@@ -28,11 +28,12 @@ export function getUserLlmHeaderLabel(
 ): string {
   // A selected CLI engine (Codex / Claude Code) determines the model shown,
   // overriding the provider/model label used by the built-in (vercel-ai) engine.
-  if (config?.executionEngine === 'codex') {
+  const preset = getExecutionEnginePreset(config?.executionEngine)
+
+  if (preset?.engine === 'codex') {
     return 'GPT 5.5'
   }
-  if (config?.executionEngine === 'claude-sdk') {
-    const preset = getExecutionEnginePreset('claude-sdk')
+  if (preset?.engine === 'claude-sdk') {
     return formatAnthropicModelLabel(preset?.model ?? '')
   }
 
@@ -76,6 +77,7 @@ function formatOpenAIModelLabel(model: string): string {
 
 function formatAnthropicModelLabel(model: string): string {
   const normalized = model.toLowerCase()
+  if (normalized.includes('fable-5')) return 'Fable 5 1M'
   if (normalized.includes('opus-4-8')) return 'Opus 4.8'
   if (normalized.includes('opus-4-6')) return 'Opus 4.6'
   if (normalized.includes('sonnet-4-6')) return 'Sonnet 4.6'

@@ -7,6 +7,9 @@ import AudioNode from './nodes/AudioNode'
 import LinkNode from './nodes/LinkNode'
 import TextNode from './nodes/TextNode'
 import StickyNoteNode from './nodes/StickyNoteNode'
+import ChecklistNode from './nodes/ChecklistNode'
+import KanbanNode from './nodes/KanbanNode'
+import SketchNode from './nodes/SketchNode'
 import CollapsedCardNode from './nodes/CollapsedCardNode'
 import { GroupBackgroundNode } from './group'
 import { SectionBackgroundNode } from './section'
@@ -20,6 +23,9 @@ export const canvasNodeTypes = {
   link: LinkNode,
   text: TextNode,
   stickyNote: StickyNoteNode,
+  checklist: ChecklistNode,
+  kanban: KanbanNode,
+  sketch: SketchNode,
   collapsedCard: CollapsedCardNode,
   groupBackground: GroupBackgroundNode,
   sectionBackground: SectionBackgroundNode,
@@ -34,6 +40,12 @@ export function defaultCollapsedNodeEmoji(type: string): string {
   switch (type) {
     case 'blockNote':
       return '\u{1F4DD}'
+    case 'checklist':
+      return '\u{2705}'
+    case 'kanban':
+      return '\u{1F4CA}'
+    case 'sketch':
+      return '\u{270F}\u{FE0F}'
     default:
       return '\u{1F4C4}'
   }

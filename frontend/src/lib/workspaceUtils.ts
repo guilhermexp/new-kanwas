@@ -76,6 +76,15 @@ function getNodePathExtension(path: string): string {
   if (basename.endsWith('.url.yaml')) {
     return '.url.yaml'
   }
+  if (basename.endsWith('.checklist.yaml')) {
+    return '.checklist.yaml'
+  }
+  if (basename.endsWith('.kanban.yaml')) {
+    return '.kanban.yaml'
+  }
+  if (basename.endsWith('.sketch.yaml')) {
+    return '.sketch.yaml'
+  }
 
   const lastDotIndex = basename.lastIndexOf('.')
   if (lastDotIndex === -1) {

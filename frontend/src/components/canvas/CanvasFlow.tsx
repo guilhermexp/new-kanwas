@@ -614,6 +614,9 @@ export function CanvasFlow({
         addNode={importInteractions.addNode}
         addStickyNote={importInteractions.addStickyNote}
         addTextNode={importInteractions.addTextNode}
+        addChecklistNode={importInteractions.addChecklistNode}
+        addKanbanNode={importInteractions.addKanbanNode}
+        addSketchNode={importInteractions.addSketchNode}
         onAddLink={handleContextMenuAddLink}
         onAddImage={handleContextMenuAddImage}
         onAddFile={handleContextMenuAddFile}

@@ -13,6 +13,9 @@ import type {
   LinkNode,
   TextNode,
   StickyNoteNode,
+  ChecklistNode,
+  KanbanNode,
+  SketchNode,
   CanvasMetadata,
 } from '../types.js'
 import { sanitizeFilename } from '../constants.js'
@@ -248,6 +251,39 @@ async function parseStickyNoteNode(xynode: StickyNoteNode, contentStore: Workspa
   return Buffer.from(yaml.stringify(yamlObj))
 }
 
+function parseChecklistNode(xynode: ChecklistNode): Buffer {
+  const data = xynode.data
+  return Buffer.from(
+    yaml.stringify({
+      items: data.items ?? [],
+      ...(data.accentColor ? { accentColor: data.accentColor } : {}),
+    })
+  )
+}
+
+function parseKanbanNode(xynode: KanbanNode): Buffer {
+  const data = xynode.data
+  return Buffer.from(
+    yaml.stringify({
+      columns: data.columns ?? [],
+      fields: data.fields ?? [],
+    })
+  )
+}
+
+function parseSketchNode(xynode: SketchNode): Buffer {
+  const data = xynode.data
+  return Buffer.from(
+    yaml.stringify({
+      ...(data.excalidrawElements ? { excalidrawElements: data.excalidrawElements } : {}),
+      ...(data.excalidrawFiles ? { excalidrawFiles: data.excalidrawFiles } : {}),
+      ...(data.excalidrawSvg ? { excalidrawSvg: data.excalidrawSvg } : {}),
+      ...(data.excalidrawSvgLight ? { excalidrawSvgLight: data.excalidrawSvgLight } : {}),
+      ...(data.excalidrawSvgDark ? { excalidrawSvgDark: data.excalidrawSvgDark } : {}),
+    })
+  )
+}
+
 async function parseNodeContent(
   xynode: XyNode,
   contentStore: WorkspaceContentStore,
@@ -269,6 +305,12 @@ async function parseNodeContent(
       return parseTextNode(xynode as TextNode)
     case 'stickyNote':
       return await parseStickyNoteNode(xynode as StickyNoteNode, contentStore)
+    case 'checklist':
+      return parseChecklistNode(xynode as ChecklistNode)
+    case 'kanban':
+      return parseKanbanNode(xynode as KanbanNode)
+    case 'sketch':
+      return parseSketchNode(xynode as SketchNode)
     case 'canvas':
       // Canvas nodes don't have content - they are rendered as folders
       return Buffer.from('# Canvas\n\n(This is a canvas node)\n')
@@ -404,12 +446,13 @@ async function convertCanvasToFSNode(
  * - Block notes become .md files within their parent canvas
  * - Text nodes become .text.yaml files within their parent canvas
  * - Sticky notes become .sticky.yaml files within their parent canvas
+ * - Checklist, Kanban, Sketch, Text, Link, and Sticky nodes become typed YAML files
  * - Binary nodes (images, etc.) become files with their native extension
  * - Duplicate names get numeric suffixes (-2, -3, etc.)
  * - Items are sorted by ID for deterministic suffix assignment
  * - Each canvas folder contains:
  *   - metadata.yaml: canvas metadata + all node xynodes
- *   - {node-name}.md / .text.yaml / .sticky.yaml: one file per content node
+ *   - {node-name}.md / .text.yaml / .sticky.yaml / typed YAML files: one file per content node
  *   - {node-name}.{ext}: one file per binary node with actual binary data
  *   - subdirectories for child canvases
  */

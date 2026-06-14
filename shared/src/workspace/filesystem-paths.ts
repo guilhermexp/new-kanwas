@@ -30,6 +30,18 @@ export function getNodeFilesystemExtension(node: NodeLike): string {
     return '.sticky.yaml'
   }
 
+  if (nodeType === 'checklist') {
+    return '.checklist.yaml'
+  }
+
+  if (nodeType === 'kanban') {
+    return '.kanban.yaml'
+  }
+
+  if (nodeType === 'sketch') {
+    return '.sketch.yaml'
+  }
+
   const data = getNodeData(node) as ImageNodeData | FileNodeData | AudioNodeData
   const ext = getExtensionFromMimeType(data.mimeType) || 'bin'
   return `.${ext}`

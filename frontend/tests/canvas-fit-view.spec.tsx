@@ -293,6 +293,7 @@ describe('canvas fit view', () => {
     getCanvasViewportMock.mockReset()
     setCanvasViewportMock.mockReset()
     ui.sidebarOpen = true
+    ui.chatOpen = true
     ui.zenMode = false
     ui.fullScreenMode = false
     ui.chatWidth = 480

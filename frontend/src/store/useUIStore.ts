@@ -2,6 +2,7 @@ import { proxy, subscribe, useSnapshot } from 'valtio'
 
 type UIState = {
   sidebarOpen: boolean
+  chatOpen: boolean
   zenMode: boolean
   fullScreenMode: boolean
   sidebarWidth: number
@@ -12,6 +13,7 @@ type UIState = {
 
 export const DEFAULT_UI_STATE: UIState = {
   sidebarOpen: true,
+  chatOpen: true,
   zenMode: false,
   fullScreenMode: false,
   sidebarWidth: 220,
@@ -34,6 +36,7 @@ export function coerceStoredUIState(stored: unknown): UIState {
 
   return {
     sidebarOpen: readStoredBoolean(data.sidebarOpen, DEFAULT_UI_STATE.sidebarOpen),
+    chatOpen: readStoredBoolean(data.chatOpen, DEFAULT_UI_STATE.chatOpen),
     zenMode: readStoredBoolean(data.zenMode, DEFAULT_UI_STATE.zenMode),
     fullScreenMode: readStoredBoolean(data.fullScreenMode, DEFAULT_UI_STATE.fullScreenMode),
     sidebarWidth: readStoredNumber(data.sidebarWidth, DEFAULT_UI_STATE.sidebarWidth),
@@ -73,6 +76,9 @@ subscribe(ui, () => {
 export const toggleSidebar = () => (ui.sidebarOpen = !ui.sidebarOpen)
 export const closeSidebar = () => (ui.sidebarOpen = false)
 export const openSidebar = () => (ui.sidebarOpen = true)
+export const toggleChat = () => (ui.chatOpen = !ui.chatOpen)
+export const closeChat = () => (ui.chatOpen = false)
+export const openChat = () => (ui.chatOpen = true)
 export const toggleZenMode = () => (ui.zenMode = !ui.zenMode)
 export const enableZenMode = () => (ui.zenMode = true)
 export const disableZenMode = () => (ui.zenMode = false)
@@ -193,6 +199,7 @@ export function useUI() {
   const snap = useSnapshot(ui)
   return {
     sidebarOpen: snap.sidebarOpen,
+    chatOpen: snap.chatOpen,
     zenMode: snap.zenMode,
     fullScreenMode: snap.fullScreenMode,
     sidebarWidth: snap.sidebarWidth,
@@ -202,6 +209,9 @@ export function useUI() {
     toggleSidebar,
     openSidebar,
     closeSidebar,
+    toggleChat,
+    openChat,
+    closeChat,
     toggleZenMode,
     enableZenMode,
     disableZenMode,

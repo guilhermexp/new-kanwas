@@ -8,13 +8,25 @@
  */
 
 export type ExecutionEngine = 'vercel-ai' | 'claude-sdk' | 'codex'
+export type ExecutionEnginePresetId = ExecutionEngine | 'claude-sdk-fable-5-1m'
 
 export const DEFAULT_EXECUTION_ENGINE: ExecutionEngine = 'vercel-ai'
+export const EXECUTION_ENGINE_PRESET_IDS = [
+  'vercel-ai',
+  'claude-sdk',
+  'claude-sdk-fable-5-1m',
+  'codex',
+] as const satisfies readonly ExecutionEnginePresetId[]
 
 const VALID_ENGINES: ReadonlySet<string> = new Set<ExecutionEngine>(['vercel-ai', 'claude-sdk', 'codex'])
+const VALID_PRESET_IDS: ReadonlySet<string> = new Set<ExecutionEnginePresetId>(EXECUTION_ENGINE_PRESET_IDS)
 
 export function isExecutionEngine(value: string): value is ExecutionEngine {
   return VALID_ENGINES.has(value)
+}
+
+export function isExecutionEnginePresetId(value: string): value is ExecutionEnginePresetId {
+  return VALID_PRESET_IDS.has(value)
 }
 
 /**
@@ -37,7 +49,8 @@ export function resolveExecutionEngine(): ExecutionEngine {
  * engine use its own default (e.g. CODEX_MODEL / Codex CLI default).
  */
 export interface ExecutionEnginePreset {
-  id: ExecutionEngine
+  id: ExecutionEnginePresetId
+  engine: ExecutionEngine
   label: string
   description: string
   model: string | null
@@ -46,18 +59,28 @@ export interface ExecutionEnginePreset {
 export const EXECUTION_ENGINE_PRESETS: readonly ExecutionEnginePreset[] = [
   {
     id: 'codex',
+    engine: 'codex',
     label: 'Codex',
     description: 'OpenAI Codex CLI (GPT-5.5)',
     model: null,
   },
   {
     id: 'claude-sdk',
+    engine: 'claude-sdk',
     label: 'Claude Code',
     description: 'Anthropic Claude Code (Opus 4.8)',
     model: 'claude-opus-4-8',
   },
   {
+    id: 'claude-sdk-fable-5-1m',
+    engine: 'claude-sdk',
+    label: 'Claude Code Fable',
+    description: 'Anthropic Claude Code (Fable 5 1M)',
+    model: 'claude-fable-5',
+  },
+  {
     id: 'vercel-ai',
+    engine: 'vercel-ai',
     label: 'Built-in (API key)',
     description: 'In-process Vercel AI SDK loop',
     model: null,

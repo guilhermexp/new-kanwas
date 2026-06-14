@@ -135,16 +135,16 @@ export function AgentModeSelector({
             type="button"
             aria-label="Select agent mode"
             onClick={dismissDirectModeTip}
-            className={`inline-flex h-[28px] min-w-0 items-center justify-center gap-1 rounded-full border px-2 text-[11px] font-semibold transition-all duration-200 hover:scale-[1.03] active:scale-95 cursor-pointer ${directModeTipActive ? 'animate-direct-mode-tip' : ''}`}
+            className={`inline-flex h-[28px] min-w-[148px] max-w-[190px] items-center justify-center gap-1 rounded-full border px-2 text-[11px] font-semibold leading-none transition-all duration-200 hover:scale-[1.03] active:scale-95 cursor-pointer ${directModeTipActive ? 'animate-direct-mode-tip' : ''}`}
             style={{
               color: activeOption.color,
               background: activeOption.background,
               borderColor: activeOption.border,
             }}
           >
-            <i className={`fa-solid ${activeOption.icon} text-[10px]`} aria-hidden="true" />
-            <span>{activeOption.label}</span>
-            <i className="fa-solid fa-chevron-down text-[8px] opacity-70" aria-hidden="true" />
+            <i className={`fa-solid ${activeOption.icon} shrink-0 text-[10px]`} aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate whitespace-nowrap text-center">{activeOption.label}</span>
+            <i className="fa-solid fa-chevron-down shrink-0 text-[8px] opacity-70" aria-hidden="true" />
           </button>
         </DropdownMenu.Trigger>
 

@@ -13,6 +13,9 @@ import {
   useAddLinkNode,
   useAddTextNode,
   useAddStickyNote,
+  useAddChecklistNode,
+  useAddKanbanNode,
+  useAddSketchNode,
 } from './hooks'
 import { showToast } from '@/utils/toast'
 import type { ToolKind, FlowPosition } from './addNodeToolbar'
@@ -121,6 +124,9 @@ export function useToolbarPlacement(canvas: CanvasItem, onSectionContentChange?:
   const addLinkNode = useAddLinkNode()
   const addTextNode = useAddTextNode()
   const addStickyNote = useAddStickyNote()
+  const addChecklistNode = useAddChecklistNode()
+  const addKanbanNode = useAddKanbanNode()
+  const addSketchNode = useAddSketchNode()
   const fitNodeInView = useFitNodeInView()
   const focusNode = useFocusNode()
   const createEmptySection = useCreateEmptySection(canvas)
@@ -201,6 +207,30 @@ export function useToolbarPlacement(canvas: CanvasItem, onSectionContentChange?:
           if (id && !position) setTimeout(() => fitNodeInView(id), 100)
           break
         }
+        case 'checklist': {
+          const id = addChecklistNode({ canvasId: canvas.id, ...posOpt })
+          if (id) {
+            attachCreatedItemToSection(id, sectionId)
+          }
+          if (id && !position) setTimeout(() => fitNodeInView(id), 100)
+          break
+        }
+        case 'kanban': {
+          const id = addKanbanNode({ canvasId: canvas.id, ...posOpt })
+          if (id) {
+            attachCreatedItemToSection(id, sectionId)
+          }
+          if (id && !position) setTimeout(() => fitNodeInView(id), 100)
+          break
+        }
+        case 'sketch': {
+          const id = addSketchNode({ canvasId: canvas.id, ...posOpt })
+          if (id) {
+            attachCreatedItemToSection(id, sectionId)
+          }
+          if (id && !position) setTimeout(() => fitNodeInView(id), 100)
+          break
+        }
         case 'image': {
           pendingPlacementRef.current = { position, sectionId }
           fileInputRef.current?.click()
@@ -238,6 +268,9 @@ export function useToolbarPlacement(canvas: CanvasItem, onSectionContentChange?:
       addNode,
       addTextNode,
       addStickyNote,
+      addChecklistNode,
+      addKanbanNode,
+      addSketchNode,
       canvas,
       fitNodeInView,
       focusNode,

@@ -29,6 +29,9 @@ interface CanvasFlowOverlaysProps {
   addNode: (options: { canvasId?: string; position?: { x: number; y: number } }) => string | null
   addStickyNote: (options: { canvasId?: string; position?: { x: number; y: number } }) => string | null
   addTextNode: (options: { canvasId?: string; position?: { x: number; y: number } }) => string | null
+  addChecklistNode: (options: { canvasId?: string; position?: { x: number; y: number } }) => string | null
+  addKanbanNode: (options: { canvasId?: string; position?: { x: number; y: number } }) => string | null
+  addSketchNode: (options: { canvasId?: string; position?: { x: number; y: number } }) => string | null
   onAddLink: () => void
   onAddImage: () => void
   onAddFile: () => void
@@ -54,6 +57,9 @@ export function CanvasFlowOverlays({
   addNode,
   addStickyNote,
   addTextNode,
+  addChecklistNode,
+  addKanbanNode,
+  addSketchNode,
   onAddLink,
   onAddImage,
   onAddFile,
@@ -83,6 +89,15 @@ export function CanvasFlowOverlays({
           }}
           onAddTextNode={() => {
             addTextNode({ canvasId, position: screenToFlowPosition({ x: contextMenu.x, y: contextMenu.y }) })
+          }}
+          onAddChecklist={() => {
+            addChecklistNode({ canvasId, position: screenToFlowPosition({ x: contextMenu.x, y: contextMenu.y }) })
+          }}
+          onAddKanban={() => {
+            addKanbanNode({ canvasId, position: screenToFlowPosition({ x: contextMenu.x, y: contextMenu.y }) })
+          }}
+          onAddSketch={() => {
+            addSketchNode({ canvasId, position: screenToFlowPosition({ x: contextMenu.x, y: contextMenu.y }) })
           }}
           onAddLink={onAddLink}
           onAddImage={onAddImage}
