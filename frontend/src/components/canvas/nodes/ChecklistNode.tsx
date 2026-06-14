@@ -190,6 +190,7 @@ export default memo(function ChecklistNode({ id, data, selected, width, height }
                 className="opacity-0 transition-opacity group-hover:opacity-100 text-foreground-muted hover:text-foreground"
                 onClick={() => updateItem(item.id, { depth: clampDepth((item.depth ?? 0) - 1) })}
                 type="button"
+                aria-label="Decrease indent level"
               >
                 <i className="fa-solid fa-outdent text-[11px]" />
               </button>
@@ -197,6 +198,7 @@ export default memo(function ChecklistNode({ id, data, selected, width, height }
                 className="opacity-0 transition-opacity group-hover:opacity-100 text-foreground-muted hover:text-foreground"
                 onClick={() => updateItem(item.id, { depth: clampDepth((item.depth ?? 0) + 1) })}
                 type="button"
+                aria-label="Increase indent level"
               >
                 <i className="fa-solid fa-indent text-[11px]" />
               </button>
@@ -204,6 +206,7 @@ export default memo(function ChecklistNode({ id, data, selected, width, height }
                 className="opacity-0 transition-opacity group-hover:opacity-100 text-foreground-muted hover:text-red-400"
                 onClick={() => deleteItem(item.id)}
                 type="button"
+                aria-label="Delete item"
               >
                 <i className="fa-solid fa-xmark text-[12px]" />
               </button>
