@@ -982,6 +982,141 @@ describe('FilesystemSyncer - Binary Files', () => {
       expect(currentData.storagePath).toBeDefined()
       expect(currentData.contentHash).not.toBe(originalContentHash)
     })
+
+    it('should delete video node and clean edges', async () => {
+      const setup = createSyncerWithBinarySupport()
+      disposeCallbacks.push(setup.dispose)
+
+      const canvas = await createTestCanvas(setup, 'Test-Canvas')
+
+      setup.fileMap.set('Test-Canvas/video.mp4', createFakeMP4Buffer())
+      const videoResult = await setup.syncer.syncChange({
+        type: 'create',
+        path: 'Test-Canvas/video.mp4',
+      })
+      expect(videoResult.success).toBe(true)
+
+      const mdResult = await setup.syncer.syncChange({
+        type: 'create',
+        path: 'Test-Canvas/note.md',
+        content: '# Note',
+      })
+      expect(mdResult.success).toBe(true)
+
+      canvas.edges.push({
+        id: 'edge-1',
+        source: videoResult.nodeId!,
+        target: mdResult.nodeId!,
+      })
+      expect(canvas.edges.length).toBe(1)
+
+      const deleteResult = await setup.syncer.syncChange({
+        type: 'delete',
+        path: 'Test-Canvas/video.mp4',
+      })
+
+      expect(deleteResult.success).toBe(true)
+      expect(deleteResult.action).toBe('deleted_node')
+      expect(canvas.edges.length).toBe(0)
+      expect(canvas.items.some((i) => i.id === videoResult.nodeId)).toBe(false)
+    })
+
+    it('should update path mapper on video create/delete', async () => {
+      const setup = createSyncerWithBinarySupport()
+      disposeCallbacks.push(setup.dispose)
+
+      await createTestCanvas(setup, 'Test-Canvas')
+
+      setup.fileMap.set('Test-Canvas/tracked.mp4', createFakeMP4Buffer())
+      await setup.syncer.syncChange({
+        type: 'create',
+        path: 'Test-Canvas/tracked.mp4',
+      })
+
+      expect(setup.pathMapper.getMapping('Test-Canvas/tracked.mp4')).toBeDefined()
+
+      await setup.syncer.syncChange({
+        type: 'delete',
+        path: 'Test-Canvas/tracked.mp4',
+      })
+
+      expect(setup.pathMapper.getMapping('Test-Canvas/tracked.mp4')).toBeUndefined()
+    })
+
+    it('should create video node in nested canvas', async () => {
+      const setup = createSyncerWithBinarySupport()
+      disposeCallbacks.push(setup.dispose)
+
+      await createTestCanvas(setup, 'Parent')
+      const childCanvas = await createTestCanvas(setup, 'Parent/Child')
+
+      setup.fileMap.set('Parent/Child/nested-video.mp4', createFakeMP4Buffer())
+      const result = await setup.syncer.syncChange({
+        type: 'create',
+        path: 'Parent/Child/nested-video.mp4',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.action).toBe('created_node')
+
+      const node = childCanvas.items.find((i): i is NodeItem => i.kind === 'node' && i.id === result.nodeId)
+      expect(node).toBeDefined()
+      expect(node!.xynode.type).toBe('video')
+    })
+
+    it('should use correct canvasId in upload call for video', async () => {
+      const setup = createSyncerWithBinarySupport()
+      disposeCallbacks.push(setup.dispose)
+
+      const canvas = await createTestCanvas(setup, 'Test-Canvas')
+
+      const videoBuffer = createFakeMP4Buffer()
+      setup.fileMap.set('Test-Canvas/upload-test.mp4', videoBuffer)
+      await setup.syncer.syncChange({
+        type: 'create',
+        path: 'Test-Canvas/upload-test.mp4',
+      })
+
+      expect(setup.uploadCalls.length).toBe(1)
+      expect(setup.uploadCalls[0].buffer).toBe(videoBuffer)
+      expect(setup.uploadCalls[0].canvasId).toBe(canvas.id)
+      expect(setup.uploadCalls[0].filename).toBe('upload-test.mp4')
+      expect(setup.uploadCalls[0].mimeType).toBe('video/mp4')
+    })
+
+    it('should route .mov, .m4v, and .ogv files to video handler', async () => {
+      const setup = createSyncerWithBinarySupport()
+      disposeCallbacks.push(setup.dispose)
+
+      await createTestCanvas(setup, 'Test-Canvas')
+
+      setup.fileMap.set('Test-Canvas/demo.mov', createFakeMP4Buffer())
+      const movResult = await setup.syncer.syncChange({
+        type: 'create',
+        path: 'Test-Canvas/demo.mov',
+      })
+      expect(movResult.success).toBe(true)
+      expect(movResult.action).toBe('created_node')
+      expect(setup.uploadCalls[0]?.mimeType).toBe('video/quicktime')
+
+      setup.fileMap.set('Test-Canvas/demo.m4v', createFakeMP4Buffer())
+      const m4vResult = await setup.syncer.syncChange({
+        type: 'create',
+        path: 'Test-Canvas/demo.m4v',
+      })
+      expect(m4vResult.success).toBe(true)
+      expect(m4vResult.action).toBe('created_node')
+      expect(setup.uploadCalls[1]?.mimeType).toBe('video/x-m4v')
+
+      setup.fileMap.set('Test-Canvas/demo.ogv', createFakeMP4Buffer())
+      const ogvResult = await setup.syncer.syncChange({
+        type: 'create',
+        path: 'Test-Canvas/demo.ogv',
+      })
+      expect(ogvResult.success).toBe(true)
+      expect(ogvResult.action).toBe('created_node')
+      expect(setup.uploadCalls[2]?.mimeType).toBe('video/ogg')
+    })
   })
 
   // ==========================================================================
