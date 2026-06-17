@@ -1,8 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import { chmodSync, copyFileSync, existsSync, mkdirSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { chmodSync, mkdirSync } from 'node:fs'
 
 // ============================================================================
 // Types
@@ -16,17 +14,12 @@ export interface CodexProcessManagerOptions {
   /** Request timeout for app-server JSON-RPC calls */
   requestTimeoutMs?: number
   /**
-   * Isolated CODEX_HOME for the app-server. Seeded with the host's
-   * `~/.codex/auth.json` so Codex authenticates with the existing CLI login
-   * (e.g. a ChatGPT subscription) without mutating the user's real ~/.codex.
-   * Defaults to `~/.kanwas/codex-home`.
+   * Isolated CODEX_HOME for the app-server. This is the per-user home of the
+   * invoking user (`<base>/<userId>`); the app-server only authenticates if
+   * that user completed the OAuth device flow. Required — there is no shared
+   * instance-global fallback.
    */
-  codexHome?: string
-  /**
-   * Path to the host's Codex credentials seeded into the isolated CODEX_HOME.
-   * Defaults to `~/.codex/auth.json`. Overridable for tests.
-   */
-  sourceAuthPath?: string
+  codexHome: string
 }
 
 export interface CodexCreateThreadOptions {
@@ -79,35 +72,25 @@ export class CodexProcessManager extends EventEmitter {
   private readonly workingDirectory: string
   private readonly requestTimeoutMs: number
   private readonly codexHome: string
-  private readonly sourceAuthPath: string
 
   constructor(options: CodexProcessManagerOptions) {
     super()
     this.executable = options.executable || 'codex'
     this.workingDirectory = options.workingDirectory
     this.requestTimeoutMs = options.requestTimeoutMs ?? 60_000
-    this.codexHome = options.codexHome || process.env.CODEX_HOME || join(homedir(), '.kanwas', 'codex-home')
-    this.sourceAuthPath = options.sourceAuthPath || join(homedir(), '.codex', 'auth.json')
+    this.codexHome = options.codexHome
   }
 
   /**
-   * Ensures an isolated CODEX_HOME exists and is seeded with the host login.
-   * Copies `~/.codex/auth.json` (the token already provisioned by the Codex
-   * CLI) into the isolated home when absent, mirroring the OpenClicky approach.
-   * Returns the resolved CODEX_HOME path.
+   * Ensures the per-user CODEX_HOME exists with owner-only permissions. The
+   * host's `~/.codex/auth.json` is NOT seeded here: a user only has a usable
+   * Codex credential if they completed the OAuth device flow, so the operator's
+   * personal login never leaks to other tenants. Returns the CODEX_HOME path.
    */
   private prepareCodexHome(): string {
     mkdirSync(this.codexHome, { recursive: true, mode: 0o700 })
     // Tighten in case the directory pre-existed with broader permissions.
     chmodSync(this.codexHome, 0o700)
-
-    const destAuth = join(this.codexHome, 'auth.json')
-    if (!existsSync(destAuth) && existsSync(this.sourceAuthPath)) {
-      // auth.json holds OAuth tokens; copyFileSync does not preserve the
-      // source mode, so enforce owner-only access on the destination.
-      copyFileSync(this.sourceAuthPath, destAuth)
-      chmodSync(destAuth, 0o600)
-    }
 
     return this.codexHome
   }

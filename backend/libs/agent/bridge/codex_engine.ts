@@ -1,4 +1,5 @@
 import type { ExecutionBridgeInput, ExecutionBridgeResult } from './types.js'
+import { resolveUserCodexHome } from '#services/codex_home'
 import { CodexProcessManager, type CodexNotification } from './codex_process_manager.js'
 import { CodexEventMapper, type CodexTimelineAction } from './codex_event_mapper.js'
 import type { State } from '../state.js'
@@ -49,9 +50,14 @@ export class CodexEngine {
     const workspacePath = await this.resolveWorkspacePath(sandboxManager)
 
     if (!this.processManager) {
+      // The app-server runs under the per-user CODEX_HOME of the invoking user
+      // (traceIdentity.distinctId is context.userId), so it only authenticates
+      // with that user's own Codex credential.
+      const userId = input.traceIdentity.distinctId
       this.processManager = new CodexProcessManager({
         executable: this.options.executable,
         workingDirectory: workspacePath,
+        codexHome: resolveUserCodexHome(userId),
       })
       await this.processManager.start()
     }

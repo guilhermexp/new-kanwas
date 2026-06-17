@@ -19,6 +19,10 @@ type AuthCliAuthorizePost = {
   request: MakeTuyauRequest<InferInput<typeof import('../app/validators/cli_auth.ts')['cliAuthorizeValidator']>>
   response: MakeNonSerializedTuyauResponse<import('../app/controllers/cli_auth_controller.ts').default['authorize'], true>
 }
+type AuthDefaultPost = {
+  request: unknown
+  response: MakeNonSerializedTuyauResponse<import('../app/controllers/auth_controller.ts').default['defaultUser'], false>
+}
 type AuthRegisterPost = {
   request: MakeTuyauRequest<InferInput<typeof import('../app/validators/auth.ts')['registerValidator']>>
   response: MakeNonSerializedTuyauResponse<import('../app/controllers/auth_controller.ts').default['register'], true>
@@ -235,6 +239,22 @@ type UserConfigPatch = {
   request: unknown
   response: MakeNonSerializedTuyauResponse<import('../app/controllers/user_config_controller.ts').default['update'], false>
 }
+type CodexauthStatusGetHead = {
+  request: unknown
+  response: MakeNonSerializedTuyauResponse<import('../app/controllers/codex_auth_controller.ts').default['status'], false>
+}
+type CodexauthStartPost = {
+  request: unknown
+  response: MakeNonSerializedTuyauResponse<import('../app/controllers/codex_auth_controller.ts').default['start'], false>
+}
+type CodexauthIdGetHead = {
+  request: unknown
+  response: MakeNonSerializedTuyauResponse<import('../app/controllers/codex_auth_controller.ts').default['poll'], false>
+}
+type CodexAuthDelete = {
+  request: unknown
+  response: MakeNonSerializedTuyauResponse<import('../app/controllers/codex_auth_controller.ts').default['disconnect'], false>
+}
 type SkillsGetHead = {
   request: unknown
   response: MakeNonSerializedTuyauResponse<import('../app/controllers/skills_controller.ts').default['index'], false>
@@ -322,6 +342,11 @@ export interface ApiDefinition {
         };
         '$post': AuthCliAuthorizePost;
       };
+    };
+    'default': {
+      '$url': {
+      };
+      '$post': AuthDefaultPost;
     };
     'register': {
       '$url': {
@@ -639,6 +664,28 @@ export interface ApiDefinition {
     '$head': UserConfigGetHead;
     '$patch': UserConfigPatch;
   };
+  'codex-auth': {
+    'status': {
+      '$url': {
+      };
+      '$get': CodexauthStatusGetHead;
+      '$head': CodexauthStatusGetHead;
+    };
+    'start': {
+      '$url': {
+      };
+      '$post': CodexauthStartPost;
+    };
+    ':sessionId': {
+      '$url': {
+      };
+      '$get': CodexauthIdGetHead;
+      '$head': CodexauthIdGetHead;
+    };
+    '$url': {
+    };
+    '$delete': CodexAuthDelete;
+  };
   'skills': {
     '$url': {
     };
@@ -722,6 +769,13 @@ const routes = [
     path: '/auth/cli/authorize',
     method: ["POST"],
     types: {} as AuthCliAuthorizePost,
+  },
+  {
+    params: [],
+    name: 'default',
+    path: '/auth/default',
+    method: ["POST"],
+    types: {} as AuthDefaultPost,
   },
   {
     params: [],
@@ -1100,6 +1154,34 @@ const routes = [
     path: '/user-config',
     method: ["PATCH"],
     types: {} as UserConfigPatch,
+  },
+  {
+    params: [],
+    name: 'codexAuth.status',
+    path: '/codex-auth/status',
+    method: ["GET","HEAD"],
+    types: {} as CodexauthStatusGetHead,
+  },
+  {
+    params: [],
+    name: 'codexAuth.start',
+    path: '/codex-auth/start',
+    method: ["POST"],
+    types: {} as CodexauthStartPost,
+  },
+  {
+    params: ["sessionId"],
+    name: 'codexAuth.poll',
+    path: '/codex-auth/:sessionId',
+    method: ["GET","HEAD"],
+    types: {} as CodexauthIdGetHead,
+  },
+  {
+    params: [],
+    name: 'codexAuth.disconnect',
+    path: '/codex-auth',
+    method: ["DELETE"],
+    types: {} as CodexAuthDelete,
   },
   {
     params: [],

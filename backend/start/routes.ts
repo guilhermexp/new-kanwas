@@ -24,6 +24,7 @@ const OrganizationMembersController = () => import('#controllers/organization_me
 const TasksController = () => import('#controllers/tasks_controller')
 const WorkspaceSuggestedTasksController = () => import('#controllers/workspace_suggested_tasks_controller')
 const UserConfigController = () => import('#controllers/user_config_controller')
+const CodexAuthController = () => import('#controllers/codex_auth_controller')
 const SlackMessageController = () => import('#controllers/slack_message_controller')
 
 // CLI auth (code + poll are public, authorize requires auth)
@@ -162,6 +163,12 @@ router
     // Global user config (not workspace-scoped)
     router.get('/user-config', [UserConfigController, 'show']).as('userConfig.show')
     router.patch('/user-config', [UserConfigController, 'update']).as('userConfig.update')
+
+    // Personal Codex OAuth connection for the Codex CLI/app-server engine.
+    router.get('/codex-auth/status', [CodexAuthController, 'status']).as('codexAuth.status')
+    router.post('/codex-auth/start', [CodexAuthController, 'start']).as('codexAuth.start')
+    router.get('/codex-auth/:sessionId', [CodexAuthController, 'poll']).as('codexAuth.poll')
+    router.delete('/codex-auth', [CodexAuthController, 'disconnect']).as('codexAuth.disconnect')
 
     // Skills routes
     router.get('/skills', [SkillsController, 'index']).as('skills.index')
