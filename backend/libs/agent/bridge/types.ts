@@ -1,6 +1,6 @@
 import type { NativeGenerateResult } from '../llm.js'
 import type { ResolvedProductAgentFlow } from '../flow.js'
-import type { TraceContext, TraceIdentity } from '../tracing/posthog.js'
+import type { TraceContext, TraceIdentity } from '../tracing/trace_context.js'
 
 /**
  * Shared interface for execution engine bridges.

@@ -28,7 +28,7 @@
     "teamSettingsSubtitle": "Manage your profile, members, and invite links.",
     "agent": "Agent",
     "agentLoadError": "Unable to load agent settings.",
-    "agentNote": "Applies to new tasks. CLI agents (Codex / Claude Code) use your local subscription login.",
+    "agentNote": "Applies to new tasks. CLI agents use subscription login: connect Codex here; Claude Code uses the local backend login.",
     "codexAuthTitle": "OpenAI OAuth (ChatGPT)",
     "codexAuthDescription": "Opens a verification page in your browser — Kanwas connects automatically and uses your Codex subscription.",
     "codexAuthCodePrompt": "Enter this code on the OpenAI page:",

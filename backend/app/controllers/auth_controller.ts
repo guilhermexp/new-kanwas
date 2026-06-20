@@ -86,6 +86,10 @@ export default class AuthController {
     )
   }
 
+  private isDefaultUserLoginEnabled(): boolean {
+    return process.env.DEFAULT_USER_LOGIN_ENABLED === 'true'
+  }
+
   private getDefaultUserProfile() {
     return {
       email: process.env.DEFAULT_USER_EMAIL || 'dev@kanwas.local',
@@ -110,6 +114,10 @@ export default class AuthController {
   }
 
   async defaultUser({ response, correlationId }: HttpContext) {
+    if (!this.isDefaultUserLoginEnabled()) {
+      return response.forbidden({ error: 'Default user login is disabled' })
+    }
+
     const profile = this.getDefaultUserProfile()
     let user: User
     let workspaceId: string | undefined

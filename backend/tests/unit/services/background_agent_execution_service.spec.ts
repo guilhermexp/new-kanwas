@@ -4,7 +4,6 @@ import { DateTime } from 'luxon'
 import User from '#models/user'
 import type Workspace from '#models/workspace'
 import BackgroundAgentExecutionService from '#services/background_agent_execution_service'
-import type PostHogService from '#services/posthog_service'
 import { SandboxRegistry } from '#services/sandbox_registry'
 
 test.group('BackgroundAgentExecutionService', (group) => {
@@ -12,7 +11,7 @@ test.group('BackgroundAgentExecutionService', (group) => {
     sinon.restore()
   })
 
-  test('identifies the user before returning AI execution context', async ({ assert }) => {
+  test('returns AI execution context and cleans up resources', async ({ assert }) => {
     const createAccessToken = sinon.stub(User.accessTokens, 'create').resolves({
       value: {
         release: () => 'token-value',
@@ -21,14 +20,10 @@ test.group('BackgroundAgentExecutionService', (group) => {
     } as any)
     const deleteAccessToken = sinon.stub(User.accessTokens, 'delete').resolves()
     const shutdownInvocationSandbox = sinon.stub().resolves()
-    const identifyUser = sinon.spy()
     const sandboxRegistry = {
       shutdownInvocationSandbox,
     } as unknown as SandboxRegistry
-    const posthogService = {
-      identifyUser,
-    } as unknown as PostHogService
-    const service = new BackgroundAgentExecutionService(sandboxRegistry, posthogService)
+    const service = new BackgroundAgentExecutionService(sandboxRegistry)
 
     const user = {
       id: 'user-1',
@@ -55,9 +50,6 @@ test.group('BackgroundAgentExecutionService', (group) => {
     })
 
     assert.lengthOf(createAccessToken.args, 1)
-    assert.lengthOf(identifyUser.args, 1)
-    assert.equal(identifyUser.firstCall.args[0].id, 'user-1')
-    assert.equal(identifyUser.firstCall.args[0].email, 'user@example.com')
     assert.equal(preparedExecution.context.userId, 'user-1')
     assert.equal(preparedExecution.context.workspaceId, 'workspace-1')
     assert.equal(preparedExecution.context.organizationId, 'org-1')

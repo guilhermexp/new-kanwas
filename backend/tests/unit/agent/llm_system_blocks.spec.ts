@@ -9,14 +9,6 @@ import type { ToolContext } from '#agent/tools/context'
 
 const mockProvider = createAnthropicProvider('test-key')
 
-function createMockPosthogService() {
-  return {
-    wrapModelWithTracing: (model: unknown) => model,
-    captureAiGeneration: () => undefined,
-    captureAiSpan: () => undefined,
-  }
-}
-
 function createMockFlow(): ResolvedProductAgentFlow {
   const definition = CanvasAgent.getProductAgentFlowDefinition('test-model', mockProvider)
 
@@ -44,8 +36,6 @@ function createMockFlow(): ResolvedProductAgentFlow {
 }
 
 function createMockToolContext(flow: ResolvedProductAgentFlow): ToolContext {
-  const posthogService = createMockPosthogService()
-
   return {
     state: {
       currentContext: {
@@ -65,7 +55,6 @@ function createMockToolContext(flow: ResolvedProductAgentFlow): ToolContext {
     flow,
     workspaceDocumentService: {} as any,
     webSearchService: {} as any,
-    posthogService: posthogService as any,
     traceContext: {
       traceId: 'trace-1',
       sessionId: 'session-1',
@@ -140,7 +129,6 @@ test.group('LLM system block ordering', (group) => {
     const llm = new LLM({
       provider: mockProvider,
       model: 'test-model',
-      posthogService: createMockPosthogService() as any,
     })
     const flow = createMockFlow()
     const context = createMockToolContext(flow)
@@ -168,7 +156,6 @@ test.group('LLM system block ordering', (group) => {
     const llm = new LLM({
       provider: mockProvider,
       model: 'test-model',
-      posthogService: createMockPosthogService() as any,
     })
     const flow = createMockFlow()
     const context = createMockToolContext(flow)
@@ -196,7 +183,6 @@ test.group('LLM system block ordering', (group) => {
     const llm = new LLM({
       provider: mockProvider,
       model: 'test-model',
-      posthogService: createMockPosthogService() as any,
     })
     const flow = createMockFlow()
     const context = createMockToolContext(flow)
@@ -217,57 +203,5 @@ test.group('LLM system block ordering', (group) => {
     assert.equal((sentInstructions[1] as any).content, '## Current Objective\n\nCall external service')
     assert.lengthOf(sentInstructions, 2)
     assert.equal(sentMessages[0].role, 'user')
-  })
-
-  test('should not emit manual generation events for explore subagent', async ({ assert }) => {
-    let generationCount = 0
-    const posthogService = {
-      wrapModelWithTracing: (model: unknown) => model,
-      captureAiGeneration: () => {
-        generationCount += 1
-      },
-      captureAiSpan: () => undefined,
-    }
-
-    const llm = new LLM({ provider: mockProvider, model: 'test-model', posthogService: posthogService as any })
-    const flow = createMockFlow()
-    const context = createMockToolContext(flow)
-    context.posthogService = posthogService as any
-
-    await llm.runSubagent({
-      agentType: 'explore',
-      objective: 'Inspect workspace',
-      context,
-      workspaceTree: 'root/\n  note.md\n',
-    })
-
-    assert.equal(generationCount, 0)
-  })
-
-  test('should not emit manual generation events for main LLM flow', async ({ assert }) => {
-    let generationCount = 0
-    const posthogService = {
-      wrapModelWithTracing: (model: unknown) => model,
-      captureAiGeneration: () => {
-        generationCount += 1
-      },
-      captureAiSpan: () => undefined,
-    }
-
-    const llm = new LLM({ provider: mockProvider, model: 'test-model', posthogService: posthogService as any })
-    const flow = createMockFlow()
-    const context = createMockToolContext(flow)
-    context.posthogService = posthogService as any
-
-    await llm.generateWithTools({
-      messages: [{ role: 'user', content: 'Hello' } as ModelMessage],
-      systemPrompts: flow.main.systemPrompts,
-      stopWhen: flow.main.stopWhen,
-      providerOptions: flow.main.providerOptions,
-      context,
-      abortSignal: context.abortSignal,
-    })
-
-    assert.equal(generationCount, 0)
   })
 })

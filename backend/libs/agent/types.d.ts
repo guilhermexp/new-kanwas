@@ -17,7 +17,6 @@ export interface AgentConfig {
   workspaceDocumentService: import('#services/workspace_document_service').default
   webSearchService: import('#services/web_search_service').default
   sandboxRegistry: import('#services/sandbox_registry').SandboxRegistry
-  posthogService: import('#services/posthog_service').default
 }
 
 // ============================================================================

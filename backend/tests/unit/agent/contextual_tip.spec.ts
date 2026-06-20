@@ -23,7 +23,6 @@ function createToolContext(
     flow: {} as any,
     workspaceDocumentService: {} as any,
     webSearchService: {} as any,
-    posthogService: {} as any,
     traceContext: { traceId: 'trace-1', sessionId: 'session-1' },
     traceIdentity: {
       distinctId: 'user-1',

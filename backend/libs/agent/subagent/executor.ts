@@ -6,10 +6,9 @@ import { createToolCallReaskRepair } from '../utils/tool_call_repair.js'
 import {
   createSpanId,
   createSubagentTraceContext,
-  isAbortError,
   withToolCallTraceContext,
   type TraceContext,
-} from '../tracing/posthog.js'
+} from '../tracing/trace_context.js'
 import { getComposioToolsWithTimeline } from '../providers/composio.js'
 import {
   cleanupReasoning,
@@ -41,32 +40,10 @@ export interface SubagentExecutionResult {
   iterations: number
 }
 
-export interface SubagentSpanPayload {
-  status: 'completed' | 'failed' | 'cancelled'
-  input?: unknown
-  output?: unknown
-  isError?: boolean
-  error?: string
-  properties?: Record<string, unknown>
-}
-
 export interface SubagentExecutionDependencies {
   createModel: (modelId: string) => unknown
-  wrapModelWithTrace: <TModel>(
-    model: TModel,
-    context: Pick<ToolContext, 'traceIdentity'>,
-    traceContext: TraceContext,
-    properties: Record<string, unknown>
-  ) => TModel
   toSystemMessages: (systemPrompts: FlowSystemPromptBlock[]) => ModelMessage[]
   formatMessages?: (messages: ModelMessage[]) => ModelMessage[]
-  captureSubagentSpan: (
-    context: ToolContext,
-    traceContext: TraceContext,
-    spanId: string,
-    agentType: string,
-    payload: SubagentSpanPayload
-  ) => void
   applyRuntimeProviderOptions: (
     baseOptions: AgentProviderCallOptions,
     context: ToolContext,
@@ -112,50 +89,15 @@ export async function runSubagentExecution(
     traceContext: loopTraceContext,
   }
 
-  let subagentProperties: Record<string, unknown> = {
-    agent_type: subagentFlow.name,
-    subagent_id: resolvedSubagentId,
-    execution_id: executionId,
-    tool_call_id: toolCallId,
-    has_composio_tools: false,
-  }
-
   try {
     let composioTools: ToolSet = {}
-    const stepGenerationSpanIds = new Map<number, string>()
-    let activeGenerationSpanId: string | undefined
-
     if (subagentFlow.enableComposio) {
       const { userId, workspaceId } = context.state.currentContext
       composioTools = await getComposioToolsWithTimeline(userId, workspaceId, baseSubagentContext)
     }
 
     const tools = subagentFlow.buildTools(baseSubagentContext, { composioTools })
-    subagentProperties = {
-      ...subagentProperties,
-      has_composio_tools: Object.keys(composioTools).length > 0,
-    }
-
     const rawModel = dependencies.createModel(subagentFlow.modelId)
-    const createSubagentGenerationModel = (
-      parentId: string | undefined,
-      generationSpanId: string,
-      functionId: string
-    ) =>
-      dependencies.wrapModelWithTrace(
-        rawModel,
-        context,
-        { ...subagentTraceContext, activeParentSpanId: parentId },
-        {
-          function_id: functionId,
-          agent_source: 'subagent',
-          agent_type: subagentFlow.name,
-          subagent_id: subagentTraceContext.subagentId,
-          tool_call_id: subagentTraceContext.toolCallId,
-          $ai_span_id: generationSpanId,
-        }
-      )
-
     const resolvedProviderOptions = dependencies.applyRuntimeProviderOptions(
       subagentFlow.providerOptions,
       subagentContext,
@@ -174,14 +116,7 @@ export async function runSubagentExecution(
 
     const repairToolCall = createToolCallReaskRepair({
       model: rawModel,
-      getModel: () => {
-        const repairGenerationSpanId = createSpanId()
-        return createSubagentGenerationModel(
-          activeGenerationSpanId ?? subagentSpanId,
-          repairGenerationSpanId,
-          `subagent-${subagentFlow.name}-tool-repair`
-        )
-      },
+      getModel: () => rawModel,
       tools: tools as ToolSet,
       providerOptions: resolvedProviderOptions,
     })
@@ -201,36 +136,12 @@ export async function runSubagentExecution(
       context: baseSubagentContext,
       providerOptions: resolvedProviderOptions,
       repairToolCall,
-      prepareStep: async ({ stepNumber, messages }) => {
-        const generationSpanId = createSpanId()
-        activeGenerationSpanId = generationSpanId
-        stepGenerationSpanIds.set(stepNumber, generationSpanId)
-
+      prepareStep: async ({ messages }) => {
         return {
-          model: createSubagentGenerationModel(
-            subagentSpanId,
-            generationSpanId,
-            `subagent-${subagentFlow.name}`
-          ) as any,
+          model: rawModel as any,
           messages: dependencies.formatMessages ? dependencies.formatMessages(messages) : messages,
-          experimental_context: {
-            ...baseSubagentContext,
-            traceContext: {
-              ...loopTraceContext,
-              activeParentSpanId: generationSpanId,
-            },
-          },
+          experimental_context: baseSubagentContext,
         }
-      },
-      trace: {
-        getParentIdForStep: (stepIndex) => stepGenerationSpanIds.get(stepIndex),
-        skipToolNames: [subagentFlow.terminalToolName],
-        properties: {
-          agent_source: 'subagent',
-          agent_type: subagentFlow.name,
-          subagent_id: subagentTraceContext.subagentId,
-          tool_call_id: subagentTraceContext.toolCallId,
-        },
       },
       onChunk: (chunk) => {
         if (chunk.type === 'reasoning-delta') {
@@ -280,31 +191,8 @@ export async function runSubagentExecution(
       iterations: runResult.steps.length,
     }
 
-    dependencies.captureSubagentSpan(context, parentTraceContext, subagentSpanId, subagentFlow.name, {
-      status: 'completed',
-      input: { objective },
-      output: {
-        iterations: result.iterations,
-        responseLength: result.response.length,
-      },
-      properties: subagentProperties,
-    })
-
     return result
   } catch (error) {
-    const cancelled = context.abortSignal?.aborted || isAbortError(error)
-
-    dependencies.captureSubagentSpan(context, parentTraceContext, subagentSpanId, subagentFlow.name, {
-      status: cancelled ? 'cancelled' : 'failed',
-      input: { objective },
-      isError: !cancelled,
-      error: error instanceof Error ? error.message : String(error),
-      properties: {
-        ...subagentProperties,
-        cancelled,
-      },
-    })
-
     throw error
   }
 }

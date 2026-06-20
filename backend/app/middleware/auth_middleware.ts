@@ -82,7 +82,11 @@ export default class AuthMiddleware {
   }
 
   private async applyDevDefaultToken(ctx: HttpContext): Promise<boolean> {
-    if (process.env.NODE_ENV !== 'development') {
+    if (process.env.NODE_ENV !== 'development' || process.env.DEFAULT_USER_LOGIN_ENABLED !== 'true') {
+      return false
+    }
+
+    if (ctx.request.headers().authorization) {
       return false
     }
 
@@ -108,7 +112,7 @@ export default class AuthMiddleware {
     try {
       await ctx.auth.authenticateUsing(options.guards, { loginRoute: this.redirectTo })
     } catch (error) {
-      // Retry with the default token in case auth state was not initialized yet.
+      // Retry with the default token only when the local-dev fallback is explicitly allowed.
       if (!(await this.applyDevDefaultToken(ctx))) {
         throw error
       }

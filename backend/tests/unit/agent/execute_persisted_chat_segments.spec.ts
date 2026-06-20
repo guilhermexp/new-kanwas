@@ -41,11 +41,6 @@ test.group('CanvasAgent persisted chat segments', () => {
           isInitialized: () => false,
         }),
       } as any,
-      posthogService: {
-        captureAiTrace: () => undefined,
-        captureAiSpan: () => undefined,
-        wrapModelWithTracing: (model: unknown) => model,
-      } as any,
     })
 
     const definition = CanvasAgent.getProductAgentFlowDefinition('test-model', mockProvider)
@@ -95,11 +90,6 @@ test.group('CanvasAgent persisted chat segments', () => {
         createInvocationSandbox: async () => ({
           isInitialized: () => false,
         }),
-      } as any,
-      posthogService: {
-        captureAiTrace: () => undefined,
-        captureAiSpan: () => undefined,
-        wrapModelWithTracing: (model: unknown) => model,
       } as any,
     })
 
@@ -171,11 +161,6 @@ test.group('CanvasAgent persisted chat segments', () => {
         createInvocationSandbox: async () => ({
           isInitialized: () => false,
         }),
-      } as any,
-      posthogService: {
-        captureAiTrace: () => undefined,
-        captureAiSpan: () => undefined,
-        wrapModelWithTracing: (model: unknown) => model,
       } as any,
     })
 

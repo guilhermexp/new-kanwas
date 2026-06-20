@@ -14,6 +14,7 @@ interface AuthProviderProps {
 }
 
 const AUTH_COOKIE_NAME = 'kanwas_logged_in'
+const DEFAULT_AUTH_ENABLED = import.meta.env.VITE_DEFAULT_AUTH_ENABLED === 'true'
 
 function toAuthUser(value: unknown): User | null {
   if (!value || typeof value !== 'object') {
@@ -166,7 +167,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [applyToken, syncCurrentUser])
 
-  // Initialize auth state from localStorage, falling back to the default single-user session.
+  // Initialize auth state from localStorage. Optional default-user auto-login is
+  // development-only convenience and must be explicitly enabled by env.
   useEffect(() => {
     const initializeAuthState = async () => {
       const storedToken = localStorage.getItem(TOKEN_KEY)
@@ -178,18 +180,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           state.isLoading = false
           return
         } catch {
-          // Invalid or expired token should silently reset auth state and use default user below.
+          // Invalid or expired tokens should silently reset auth state before optional fallback.
         }
       }
 
-      try {
-        await loginWithDefaultUser()
-      } catch (error) {
-        console.error('Default user login failed:', error)
-        applyToken(null)
-      } finally {
-        state.isLoading = false
+      if (DEFAULT_AUTH_ENABLED) {
+        try {
+          await loginWithDefaultUser()
+        } catch (error) {
+          console.error('Default user login failed:', error)
+          applyToken(null)
+        } finally {
+          state.isLoading = false
+        }
+        return
       }
+
+      applyToken(null)
+      state.isLoading = false
     }
 
     void initializeAuthState()
@@ -276,12 +284,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       applyToken(null)
       queryClient.clear()
 
-      try {
-        await loginWithDefaultUser()
-        showToast('Using default user', 'success')
-      } catch (error) {
-        console.error('Default user login failed:', error)
-        showToast('Default user login failed', 'error')
+      if (DEFAULT_AUTH_ENABLED) {
+        try {
+          await loginWithDefaultUser()
+          showToast('Using default user', 'success')
+        } catch (error) {
+          console.error('Default user login failed:', error)
+          showToast('Default user login failed', 'error')
+        }
       }
     }
   }

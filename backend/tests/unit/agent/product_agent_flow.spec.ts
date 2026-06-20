@@ -17,7 +17,6 @@ test.group('Product agent flow', () => {
       workspaceDocumentService: {} as any,
       webSearchService: {} as any,
       sandboxRegistry: {} as any,
-      posthogService: {} as any,
     })
     const skillStub = sinon.stub(SkillService.prototype, 'getSkillDescriptionsForPrompt').resolves(null)
 
@@ -46,7 +45,6 @@ test.group('Product agent flow', () => {
       workspaceDocumentService: {} as any,
       webSearchService: {} as any,
       sandboxRegistry: {} as any,
-      posthogService: {} as any,
     })
     const skillStub = sinon.stub(SkillService.prototype, 'getSkillDescriptionsForPrompt').resolves(null)
 

@@ -17,7 +17,6 @@ test.group('CanvasAgent resolveFlow cleanup', () => {
       } as any,
       webSearchService: {} as any,
       sandboxRegistry: {} as any,
-      posthogService: {} as any,
     })
 
     const buildSystemPromptsStub = sinon

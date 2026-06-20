@@ -1,7 +1,6 @@
 import AgentInvoked from '#events/agent_invoked'
 import InvocationSubscribed from '#events/invocation_subscribed'
 import InvocationCompleted from '#events/invocation_completed'
-import WorkspaceViewed from '#events/workspace_viewed'
 import ConnectionsCatalogRefreshRequested from '#events/connections_catalog_refresh_requested'
 import UserRegistered from '#events/user_registered'
 import { captureException } from '#services/sentry_context'
@@ -83,6 +82,5 @@ emitter.listen(InvocationCompleted, [
   () => import('#listeners/complete_workspace_onboarding'),
   () => import('#listeners/track_invocation_usage'),
 ])
-emitter.listen(WorkspaceViewed, [() => import('#listeners/track_workspace_viewed')])
 emitter.listen(ConnectionsCatalogRefreshRequested, [() => import('#listeners/refresh_connections_catalog')])
 emitter.listen(UserRegistered, [() => import('#listeners/send_user_registration_slack_notification')])

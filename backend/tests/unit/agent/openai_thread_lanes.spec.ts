@@ -11,19 +11,6 @@ import type { ToolContext } from '#agent/tools/context'
 const FAKE_OPENAI_KEY = 'test-openai-key'
 const mockProvider = createOpenAIProvider(FAKE_OPENAI_KEY)
 
-function createMockPosthogService() {
-  const spans: Record<string, any>[] = []
-
-  return {
-    spans,
-    wrapModelWithTracing: (model: unknown) => model,
-    captureAiGeneration: () => undefined,
-    captureAiSpan: (payload: Record<string, any>) => {
-      spans.push(payload)
-    },
-  }
-}
-
 function createMockFlow(): ResolvedProductAgentFlow {
   const definition = CanvasAgent.getProductAgentFlowDefinition(mockProvider.modelTiers.big, mockProvider)
 
@@ -38,10 +25,7 @@ function createMockFlow(): ResolvedProductAgentFlow {
   })
 }
 
-function createMockToolContext(
-  flow: ResolvedProductAgentFlow,
-  posthogService: ReturnType<typeof createMockPosthogService> = createMockPosthogService()
-): ToolContext {
+function createMockToolContext(flow: ResolvedProductAgentFlow): ToolContext {
   return {
     state: {
       currentContext: {
@@ -62,7 +46,6 @@ function createMockToolContext(
     flow,
     workspaceDocumentService: {} as any,
     webSearchService: {} as any,
-    posthogService: posthogService as any,
     traceContext: {
       traceId: 'trace-1',
       sessionId: 'thread-1',
@@ -117,7 +100,6 @@ test.group('OpenAI thread lanes', (group) => {
     const llm = new LLM({
       provider: mockProvider,
       model: mockProvider.modelTiers.big,
-      posthogService: createMockPosthogService() as any,
     })
     const flow = createMockFlow()
     const context = createMockToolContext(flow)
@@ -154,7 +136,6 @@ test.group('OpenAI thread lanes', (group) => {
     const llm = new LLM({
       provider: mockProvider,
       model: mockProvider.modelTiers.big,
-      posthogService: createMockPosthogService() as any,
     })
     const flow = createMockFlow()
     const context = createMockToolContext(flow)
@@ -195,37 +176,5 @@ test.group('OpenAI thread lanes', (group) => {
     assert.isUndefined(capturedMaxOutputTokens)
     assert.notEqual(expectedThreadContext?.providerLaneKey, expectedLaneId)
     assert.notEqual(expectedThreadContext?.providerLaneKey, mainThreadContext?.providerLaneKey)
-  })
-
-  test('main-agent span includes replay trace properties when provided', async ({ assert }) => {
-    const posthogService = createMockPosthogService()
-    const llm = new LLM({
-      provider: mockProvider,
-      model: mockProvider.modelTiers.big,
-      posthogService: posthogService as any,
-    })
-    const flow = createMockFlow()
-    const context = createMockToolContext(flow, posthogService)
-
-    await llm.generateWithTools({
-      messages: [{ role: 'user', content: 'Hello again' } as ModelMessage],
-      systemPrompts: flow.main.systemPrompts,
-      stopWhen: flow.main.stopWhen,
-      providerOptions: flow.main.providerOptions,
-      context,
-      abortSignal: context.abortSignal,
-      traceProperties: {
-        parent_messages_hash: 'abc123',
-        replayed_messages_hash: 'abc123',
-        replay_hash_match: true,
-      },
-    })
-
-    const mainAgentSpan = posthogService.spans.find((span) => span.spanName === 'main-agent')
-
-    assert.exists(mainAgentSpan)
-    assert.equal(mainAgentSpan?.properties?.parent_messages_hash, 'abc123')
-    assert.equal(mainAgentSpan?.properties?.replayed_messages_hash, 'abc123')
-    assert.isTrue(mainAgentSpan?.properties?.replay_hash_match)
   })
 })

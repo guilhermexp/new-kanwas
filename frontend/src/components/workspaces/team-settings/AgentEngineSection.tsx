@@ -137,6 +137,12 @@ function CodexAccountConnection({
         if (result.status === 'connected') {
           setLogin(null)
           onRefresh()
+          return
+        }
+        if (typeof result.intervalSeconds === 'number') {
+          setLogin((current) =>
+            current?.sessionId === login.sessionId ? { ...current, intervalSeconds: result.intervalSeconds! } : current
+          )
         }
       } catch (pollError) {
         if (!cancelled) {

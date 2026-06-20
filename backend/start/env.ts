@@ -58,6 +58,11 @@ export default await Env.create(new URL('../', import.meta.url), {
   |----------------------------------------------------------
   */
   API_SECRET: Env.schema.string(),
+  DEFAULT_USER_LOGIN_ENABLED: Env.schema.boolean.optional(),
+  DEFAULT_USER_EMAIL: Env.schema.string.optional(),
+  DEFAULT_USER_PASSWORD: Env.schema.string.optional(),
+  DEFAULT_USER_NAME: Env.schema.string.optional(),
+  DEFAULT_WORKSPACE_NAME: Env.schema.string.optional(),
 
   /*
   |----------------------------------------------------------

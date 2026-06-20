@@ -31,7 +31,6 @@ function createMockContext(providerName: string): ToolContext {
     flow: {} as any,
     workspaceDocumentService: {} as any,
     webSearchService: {} as any,
-    posthogService: {} as any,
     traceContext: { traceId: 't', sessionId: 's', activeParentSpanId: 'p' },
     traceIdentity: {
       distinctId: 'u',

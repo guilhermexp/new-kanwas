@@ -8,7 +8,6 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
 import StartAgent from '#listeners/start_agent'
 import TrackInvocationUsage from '#listeners/track_invocation_usage'
-import TrackWorkspaceViewed from '#listeners/track_workspace_viewed'
 import GenerateSuggestedTasksAfterOnboarding from '#listeners/generate_suggested_tasks_after_onboarding'
 import { SandboxRegistry } from '#services/sandbox_registry'
 import WorkspaceDocumentService from '#services/workspace_document_service'
@@ -54,10 +53,6 @@ const assertSafeTestDatabase = () => {
   }
 }
 
-export class NoOpWorkspaceViewedListener {
-  async handle() {}
-}
-
 export class NoOpSuggestedTasksAfterOnboardingListener {
   async handle() {}
 }
@@ -96,12 +91,6 @@ export const runnerHooks: Required<Pick<Config, 'setup' | 'teardown'>> = {
     },
     () => {
       app.container.swap(
-        TrackWorkspaceViewed,
-        () => new NoOpWorkspaceViewedListener() as unknown as TrackWorkspaceViewed
-      )
-    },
-    () => {
-      app.container.swap(
         GenerateSuggestedTasksAfterOnboarding,
         () => new NoOpSuggestedTasksAfterOnboardingListener() as unknown as GenerateSuggestedTasksAfterOnboarding
       )
@@ -119,9 +108,6 @@ export const runnerHooks: Required<Pick<Config, 'setup' | 'teardown'>> = {
     },
     () => {
       app.container.restore(TrackInvocationUsage)
-    },
-    () => {
-      app.container.restore(TrackWorkspaceViewed)
     },
     () => {
       app.container.restore(SandboxRegistry)

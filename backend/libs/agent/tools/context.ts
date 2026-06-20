@@ -6,8 +6,7 @@ import type { AgentInfo } from '../types.js'
 import type { ProviderName } from '../providers/types.js'
 import type WorkspaceDocumentService from '#services/workspace_document_service'
 import type WebSearchService from '#services/web_search_service'
-import type PostHogService from '#services/posthog_service'
-import type { TraceContext, TraceIdentity } from '../tracing/posthog.js'
+import type { TraceContext, TraceIdentity } from '../tracing/trace_context.js'
 import type { ResolvedProductAgentFlow } from '../flow.js'
 
 /**
@@ -44,9 +43,7 @@ export interface ToolContext {
   // Services (flat, matching existing ToolContext)
   workspaceDocumentService: WorkspaceDocumentService
   webSearchService: WebSearchService
-  posthogService: PostHogService
-
-  // Trace propagation for PostHog LLM analytics
+  // Trace propagation for invocation/correlation context
   traceContext: TraceContext
   traceIdentity: TraceIdentity
 

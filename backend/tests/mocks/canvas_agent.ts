@@ -4,7 +4,6 @@ import type { NativeGenerateResult } from '#agent/llm'
 import WorkspaceDocumentService from '#services/workspace_document_service'
 import WebSearchService from '#services/web_search_service'
 import { SandboxRegistry } from '#services/sandbox_registry'
-import PostHogService from '#services/posthog_service'
 import { createAnthropicProvider } from '#agent/providers/index'
 import app from '@adonisjs/core/services/app'
 
@@ -28,7 +27,6 @@ export class MockCanvasAgent extends CanvasAgent {
       workspaceDocumentService: {} as WorkspaceDocumentService, // Mock service
       webSearchService: new WebSearchService('mock-api-key'), // Mock service
       sandboxRegistry: {} as SandboxRegistry,
-      posthogService: {} as PostHogService,
     })
   }
 

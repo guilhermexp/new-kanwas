@@ -67,14 +67,15 @@ services:
       - HOST=0.0.0.0
     extra_hosts:
       - 'localhost:host-gateway'
-    # CLI execution engines (claude-sdk/codex) authenticate with the host's CLI
-    # subscription logins. Until UI-driven auth exists, mount the host tokens:
-    #   - codex reads ~/.codex/auth.json (copied into an isolated CODEX_HOME)
-    #   - claude-sdk reads ~/.claude credentials
-    # Stopgap only — this exposes the host login state to the container.
+    # CLI execution engines need subscription credentials:
+    #   - claude-sdk reads the developer's mounted ~/.claude credentials.
+    #   - codex uses Kanwas per-user OpenAI device OAuth, persisted under
+    #     /root/.kanwas/codex-home/<userId>/auth.json.
+    # Do not mount ~/.codex here; that would leak the operator's Codex login to
+    # other users instead of requiring the per-user app connection.
     volumes:
-      - ${HOME}/.codex:/root/.codex:ro
       - ${HOME}/.claude:/root/.claude
+      - kanwas_codex_home:/root/.kanwas/codex-home
     depends_on:
       postgres:
         condition: service_healthy
@@ -157,6 +158,7 @@ services:
 volumes:
   kanwas_postgres_data:
   yjs_server_data:
+  kanwas_codex_home:
 
 networks:
   kanwas-network:

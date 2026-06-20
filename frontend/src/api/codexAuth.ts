@@ -13,7 +13,7 @@ export interface CodexAuthStartResult {
   expiresAt: string
 }
 
-export type CodexAuthPollResult = { status: 'pending' } | { status: 'connected' }
+export type CodexAuthPollResult = { status: 'pending'; intervalSeconds?: number } | { status: 'connected' }
 
 export async function getCodexAuthStatus(): Promise<CodexAuthStatus> {
   const response = await tuyau['codex-auth'].status.$get()

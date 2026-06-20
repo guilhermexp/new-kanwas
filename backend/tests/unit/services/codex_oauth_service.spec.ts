@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import CodexOauthService from '#services/codex_oauth_service'
@@ -9,6 +9,14 @@ function jsonResponse(status: number, payload: unknown): Response {
     status,
     headers: { 'content-type': 'application/json' },
   })
+}
+
+function fakeCodexAccessToken(accountId: string): string {
+  const payload = Buffer.from(
+    JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: accountId } }),
+    'utf8'
+  ).toString('base64url')
+  return `header.${payload}.signature`
 }
 
 const USER_A = 'user-a'
@@ -61,6 +69,7 @@ test.group('CodexOauthService', (group) => {
     const service = new CodexOauthService({
       codexHomeBase,
       sessionIdFactory: () => 'session-1',
+      now: () => new Date(1_000_000),
       fetch: async (url, init) => {
         if (String(url).endsWith('/usercode')) {
           return jsonResponse(200, {
@@ -80,10 +89,10 @@ test.group('CodexOauthService', (group) => {
         assert.include(String(init?.body), 'code=auth-code')
         assert.include(String(init?.body), 'code_verifier=verifier')
         return jsonResponse(200, {
-          access_token: 'access-token',
+          access_token: fakeCodexAccessToken('acct-from-jwt'),
           refresh_token: 'refresh-token',
           id_token: 'id-token',
-          account_id: 'acct-1',
+          expires_in: 3600,
         })
       },
     })
@@ -102,10 +111,11 @@ test.group('CodexOauthService', (group) => {
     const auth = JSON.parse(readFileSync(userAuthPath, 'utf8'))
     assert.equal(auth.auth_mode, 'chatgpt')
     assert.isNull(auth.OPENAI_API_KEY)
-    assert.equal(auth.tokens.access_token, 'access-token')
+    assert.equal(auth.tokens.access_token, fakeCodexAccessToken('acct-from-jwt'))
     assert.equal(auth.tokens.refresh_token, 'refresh-token')
     assert.equal(auth.tokens.id_token, 'id-token')
-    assert.equal(auth.tokens.account_id, 'acct-1')
+    assert.equal(auth.tokens.account_id, 'acct-from-jwt')
+    assert.equal(auth.tokens.expires_at, 1_000_000 + 3600 * 1000)
 
     // No temp files are left behind after the atomic rename.
     const leftovers = readdirSync(join(codexHomeBase, USER_A)).filter((name) => name.endsWith('.tmp'))
@@ -130,6 +140,71 @@ test.group('CodexOauthService', (group) => {
     assert.deepEqual(await service.getStatus(USER_A), { connected: false })
   })
 
+  test('returns pending with an increased interval when OpenAI asks the client to slow down', async ({ assert }) => {
+    const service = new CodexOauthService({
+      codexHomeBase,
+      sessionIdFactory: () => 'session-1',
+      fetch: async (url) => {
+        if (String(url).endsWith('/usercode')) {
+          return jsonResponse(200, { user_code: 'ABCD-EFGH', device_auth_id: 'device-123', interval: 3 })
+        }
+        return jsonResponse(400, { error: { code: 'slow_down', message: 'Slow down' } })
+      },
+    })
+
+    await service.startDeviceLogin(USER_A)
+
+    assert.deepEqual(await service.pollDeviceLogin(USER_A, 'session-1'), { status: 'pending', intervalSeconds: 8 })
+  })
+
+  test('refreshes an expired stored credential before reporting connected', async ({ assert }) => {
+    let nowMs = 2_000_000
+    const userDir = join(codexHomeBase, USER_A)
+    const userAuthPath = authPath(USER_A)
+    mkdirSync(userDir, { recursive: true })
+    writeFileSync(
+      userAuthPath,
+      JSON.stringify({
+        auth_mode: 'chatgpt',
+        OPENAI_API_KEY: null,
+        tokens: {
+          access_token: fakeCodexAccessToken('old-account'),
+          refresh_token: 'old-refresh-token',
+          account_id: 'old-account',
+          expires_at: nowMs - 1,
+        },
+        last_refresh: 'old-refresh-time',
+      })
+    )
+
+    const requests: Array<{ url: string; body: string }> = []
+    const service = new CodexOauthService({
+      codexHomeBase,
+      now: () => new Date(nowMs),
+      fetch: async (url, init) => {
+        requests.push({ url: String(url), body: String(init?.body) })
+        return jsonResponse(200, {
+          access_token: fakeCodexAccessToken('new-account'),
+          refresh_token: 'new-refresh-token',
+          expires_in: 1800,
+        })
+      },
+    })
+
+    const status = await service.getStatus(USER_A)
+
+    assert.deepEqual(status, { connected: true, lastRefresh: new Date(nowMs).toISOString() })
+    assert.equal(requests[0].url, 'https://auth.openai.com/oauth/token')
+    assert.include(requests[0].body, 'grant_type=refresh_token')
+    assert.include(requests[0].body, 'refresh_token=old-refresh-token')
+
+    const auth = JSON.parse(readFileSync(userAuthPath, 'utf8'))
+    assert.equal(auth.tokens.access_token, fakeCodexAccessToken('new-account'))
+    assert.equal(auth.tokens.refresh_token, 'new-refresh-token')
+    assert.equal(auth.tokens.account_id, 'new-account')
+    assert.equal(auth.tokens.expires_at, nowMs + 1800 * 1000)
+  })
+
   test('isolates credentials per user', async ({ assert }) => {
     const service = new CodexOauthService({
       codexHomeBase,
@@ -141,7 +216,11 @@ test.group('CodexOauthService', (group) => {
         if (String(url).endsWith('/deviceauth/token')) {
           return jsonResponse(200, { authorization_code: 'auth-code', code_verifier: 'verifier' })
         }
-        return jsonResponse(200, { access_token: 'token-a' })
+        return jsonResponse(200, {
+          access_token: fakeCodexAccessToken('acct-a'),
+          refresh_token: 'refresh-token-a',
+          expires_in: 3600,
+        })
       },
     })
 
@@ -168,7 +247,11 @@ test.group('CodexOauthService', (group) => {
         if (String(url).endsWith('/deviceauth/token')) {
           return jsonResponse(200, { authorization_code: 'auth-code', code_verifier: 'verifier' })
         }
-        return jsonResponse(200, { access_token: 'token-a' })
+        return jsonResponse(200, {
+          access_token: fakeCodexAccessToken('acct-a'),
+          refresh_token: 'refresh-token-a',
+          expires_in: 3600,
+        })
       },
     })
 
@@ -246,7 +329,11 @@ test.group('CodexOauthService', (group) => {
         if (String(url).endsWith('/deviceauth/token')) {
           return jsonResponse(200, { authorization_code: 'auth-code', code_verifier: 'verifier' })
         }
-        return jsonResponse(200, { access_token: 'token-1' })
+        return jsonResponse(200, {
+          access_token: fakeCodexAccessToken('acct-1'),
+          refresh_token: 'refresh-token-1',
+          expires_in: 3600,
+        })
       },
     })
 
@@ -255,7 +342,7 @@ test.group('CodexOauthService', (group) => {
 
     const userDir = join(codexHomeBase, USER_A)
     const before = readFileSync(join(userDir, 'auth.json'), 'utf8')
-    assert.include(before, 'token-1')
+    assert.include(before, fakeCodexAccessToken('acct-1'))
 
     // A second successful flow replaces the file; no temp artifacts remain.
     const service2 = new CodexOauthService({
@@ -268,14 +355,18 @@ test.group('CodexOauthService', (group) => {
         if (String(url).endsWith('/deviceauth/token')) {
           return jsonResponse(200, { authorization_code: 'auth-code', code_verifier: 'verifier' })
         }
-        return jsonResponse(200, { access_token: 'token-2' })
+        return jsonResponse(200, {
+          access_token: fakeCodexAccessToken('acct-2'),
+          refresh_token: 'refresh-token-2',
+          expires_in: 3600,
+        })
       },
     })
     await service2.startDeviceLogin(USER_A)
     await service2.pollDeviceLogin(USER_A, 'session-2')
 
     const after = readFileSync(join(userDir, 'auth.json'), 'utf8')
-    assert.include(after, 'token-2')
+    assert.include(after, fakeCodexAccessToken('acct-2'))
     const leftovers = readdirSync(userDir).filter((name) => name.endsWith('.tmp'))
     assert.deepEqual(leftovers, [])
   })

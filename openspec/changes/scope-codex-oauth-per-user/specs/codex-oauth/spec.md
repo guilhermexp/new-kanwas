@@ -33,7 +33,9 @@ single instance-global path shared across users and organizations.
 ### Requirement: Per-user device-login session scoping
 
 The system SHALL associate each in-progress device-login session with the user
-who started it, and SHALL reject polling of a session by any other user.
+who started it, SHALL reject polling of a session by any other user, and SHALL
+handle OpenAI device-code pending/slow-down responses without treating them as
+fatal login errors.
 
 #### Scenario: Polling another user's session is rejected
 
@@ -47,6 +49,13 @@ who started it, and SHALL reject polling of a session by any other user.
 - **GIVEN** a device-login session whose `expiresAt` has passed
 - **WHEN** the owning user polls that session
 - **THEN** the session is removed and an expiry error is returned
+
+#### Scenario: Slow-down response increases the poll interval
+
+- **GIVEN** a device-login session with a current polling interval
+- **WHEN** OpenAI returns `slow_down` while polling
+- **THEN** the response remains pending
+- **AND** the returned interval is increased for subsequent frontend polling
 
 ### Requirement: Agent invocation uses the invoking user's credential
 
@@ -65,6 +74,27 @@ credential.
 - **WHEN** a per-user `CODEX_HOME` is prepared
 - **THEN** the host credential is NOT copied into it
 - **AND** a user without a completed device flow has no usable Codex credential
+
+### Requirement: Pi-compatible Codex token lifecycle
+
+The system SHALL persist enough token metadata to mirror Pi's Codex subscription
+OAuth lifecycle while preserving the Codex CLI `auth.json` shape required by
+`codex app-server`.
+
+#### Scenario: Account id and expiry are persisted
+
+- **WHEN** the backend exchanges a device authorization for OpenAI tokens
+- **THEN** it stores the access token, refresh token, expiry timestamp, and
+  ChatGPT account id in the user's Codex `auth.json`
+- **AND** when OpenAI omits a direct `account_id`, the account id is extracted
+  from the access token claims
+
+#### Scenario: Expired credential is refreshed before status reports connected
+
+- **GIVEN** a user has an expired Codex credential with a refresh token
+- **WHEN** the user requests `GET /codex-auth/status`
+- **THEN** the backend refreshes the credential
+- **AND** reports `connected: true` only after the refreshed credential is stored
 
 ### Requirement: Atomic credential file write
 
@@ -99,3 +129,25 @@ a clear error, and SHALL NOT reset the poll timer on unrelated parent re-renders
 
 - **WHEN** the user opens any Codex verification URL in a new tab
 - **THEN** the link is opened with `noopener,noreferrer`
+
+### Requirement: App auth allows real multi-user Codex validation
+
+The system SHALL NOT silently replace an explicit authenticated user's bearer
+session with a local default-user session, and SHALL make default-user login an
+explicit opt-in convenience. This ensures Codex credential isolation can be
+validated with two distinct app users.
+
+#### Scenario: Default user login is opt-in
+
+- **GIVEN** default-user login has not been explicitly enabled
+- **WHEN** the frontend loads without a stored token or a client calls `/auth/default`
+- **THEN** the app remains unauthenticated or the endpoint rejects the request
+- **AND** no default user token is minted silently
+
+#### Scenario: Explicit bearer token is preserved in development
+
+- **GIVEN** the backend is running in development with default-user login enabled
+- **AND** a request includes an explicit `Authorization` bearer token
+- **WHEN** auth middleware handles the request
+- **THEN** it authenticates that explicit token
+- **AND** it does not overwrite the header with the default-user token

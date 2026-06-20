@@ -1,14 +1,6 @@
 import { ToolLoopAgent, type ModelMessage, type PrepareStepFunction, type StepResult, type ToolSet } from 'ai'
 import type { AgentProviderCallOptions } from './providers/types.js'
 import type { ToolContext } from './tools/context.js'
-import { captureToolCallSpansFromStep } from './tracing/tool_spans.js'
-
-export interface ToolLoopRunnerTrace {
-  parentId?: string
-  getParentIdForStep?: (stepIndex: number) => string | undefined
-  properties?: Record<string, unknown>
-  skipToolNames?: string[]
-}
 
 export interface ToolLoopRunnerOptions {
   model: unknown
@@ -23,7 +15,6 @@ export interface ToolLoopRunnerOptions {
   repairToolCall?: unknown
   formatMessages?: (messages: ModelMessage[]) => ModelMessage[]
   prepareStep?: PrepareStepFunction
-  trace?: ToolLoopRunnerTrace
   onStepFinish?: (step: StepResult<ToolSet>, stepIndex: number) => Promise<void> | void
   onChunk?: (chunk: any) => void
   onError?: (error: unknown) => void
@@ -57,19 +48,6 @@ export async function runToolLoop(options: ToolLoopRunnerOptions): Promise<ToolL
         completedStepCount += 1
 
         await options.onStepFinish?.(step as StepResult<ToolSet>, stepIndex)
-
-        if (options.trace) {
-          captureToolCallSpansFromStep({
-            posthogService: options.context.posthogService,
-            traceIdentity: options.context.traceIdentity,
-            traceContext: options.context.traceContext,
-            step,
-            stepIndex,
-            parentId: options.trace.getParentIdForStep?.(stepIndex) ?? options.trace.parentId,
-            skipToolNames: options.trace.skipToolNames,
-            properties: options.trace.properties,
-          })
-        }
       },
     })
 

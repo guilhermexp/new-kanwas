@@ -3,13 +3,11 @@ import { z } from 'zod'
 import type { ToolContext } from './tools/context.js'
 import { promptManager } from './prompt_manager.js'
 import { createToolCallReaskRepair } from './utils/tool_call_repair.js'
-import { createSpanId, isAbortError, withToolCallTraceContext, type TraceContext } from './tracing/posthog.js'
-import type PostHogService from '#services/posthog_service'
 import { type FlowSystemPromptBlock } from './flow.js'
 import { runToolLoop } from './tool_loop_runner.js'
 import { sanitizeToolCallInputs } from './llm/sanitize_messages.js'
 import { createMainToolLoopStreamingHandlers } from './llm/main_streaming.js'
-import { runSubagentExecution, type SubagentSpanPayload } from './subagent/executor.js'
+import { runSubagentExecution } from './subagent/executor.js'
 import type { AgentProviderCallOptions, ProviderConfig } from './providers/types.js'
 import { applyRuntimeProviderOptions, buildOpenAIThreadContext } from './providers/runtime_options.js'
 
@@ -102,22 +100,16 @@ type CompleteContext = Pick<ToolContext, 'traceContext' | 'traceIdentity' | 'age
 /**
  * LLM - Vercel AI SDK implementation for Anthropic Claude.
  *
- * Uses PostHog LLM tracing via invocation-scoped model wrapping.
- *
  * Key design decisions:
  * - stopWhen comes from invocation-resolved flow configuration
- * - per-run withTracing wrapping preserves parent/session linkage
  * - Cache breakpoints via providerOptions for Anthropic prompt caching
  */
 export class LLM {
   private provider: ProviderConfig
   private modelName: string
-  private posthogService: PostHogService
-
-  constructor(config: { provider: ProviderConfig; model: string; posthogService: PostHogService }) {
+  constructor(config: { provider: ProviderConfig; model: string }) {
     this.provider = config.provider
     this.modelName = config.model
-    this.posthogService = config.posthogService
   }
 
   /**
@@ -132,22 +124,10 @@ export class LLM {
    */
   async generateWithTools(options: NativeGenerateOptions): Promise<NativeGenerateResult> {
     const { messages, systemPrompts, stopWhen, providerOptions, context, traceProperties, abortSignal } = options
-    const mainLoopSpanId = createSpanId()
-    const loopTraceContext: TraceContext = {
-      ...context.traceContext,
-      activeParentSpanId: mainLoopSpanId,
-    }
+    void traceProperties
     const baseToolExecutionContext: ToolContext = {
       ...context,
-      traceContext: loopTraceContext,
       abortSignal,
-    }
-    const stepGenerationSpanIds = new Map<number, string>()
-    let activeGenerationSpanId: string | undefined
-    const loopSpanProperties = {
-      agent_source: context.agent.source,
-      subagent_id: context.traceContext.subagentId,
-      ...traceProperties,
     }
 
     const allTools = context.flow.main.buildTools(baseToolExecutionContext)
@@ -212,35 +192,9 @@ export class LLM {
       flowName: context.flow.name,
     })
 
-    const createMainGenerationModel = (
-      parentId: string | undefined,
-      generationSpanId: string,
-      functionId: string,
-      properties?: Record<string, unknown>
-    ) =>
-      this.wrapModelWithTrace(
-        rawModel,
-        context,
-        { ...context.traceContext, activeParentSpanId: parentId },
-        {
-          function_id: functionId,
-          agent_source: context.agent.source,
-          subagent_id: context.traceContext.subagentId,
-          $ai_span_id: generationSpanId,
-          ...properties,
-        }
-      )
-
     const repairToolCall = createToolCallReaskRepair({
       model: rawModel,
-      getModel: () => {
-        const repairGenerationSpanId = createSpanId()
-        return createMainGenerationModel(
-          activeGenerationSpanId ?? mainLoopSpanId,
-          repairGenerationSpanId,
-          'main-agent-tool-repair'
-        )
-      },
+      getModel: () => rawModel,
       tools: allTools as ToolSet,
       providerOptions: resolvedProviderOptions,
     })
@@ -263,27 +217,14 @@ export class LLM {
         context: baseToolExecutionContext,
         providerOptions: resolvedProviderOptions,
         repairToolCall,
-        prepareStep: async ({ stepNumber, messages: stepMessages }) => {
-          const generationSpanId = createSpanId()
-          activeGenerationSpanId = generationSpanId
-          stepGenerationSpanIds.set(stepNumber, generationSpanId)
+        prepareStep: async ({ messages: stepMessages }) => {
           const formattedMessages = formatMessages(stepMessages)
 
           return {
-            model: createMainGenerationModel(mainLoopSpanId, generationSpanId, 'main-agent') as any,
+            model: rawModel as any,
             messages: formattedMessages,
-            experimental_context: {
-              ...baseToolExecutionContext,
-              traceContext: {
-                ...loopTraceContext,
-                activeParentSpanId: generationSpanId,
-              },
-            },
+            experimental_context: baseToolExecutionContext,
           }
-        },
-        trace: {
-          getParentIdForStep: (stepIndex) => stepGenerationSpanIds.get(stepIndex),
-          properties: loopSpanProperties,
         },
         onChunk: streamingHandlers.onChunk,
         onError: streamingHandlers.onError,
@@ -303,22 +244,6 @@ export class LLM {
       const hasTextOutput = textOutput.length > 0
       const hasPersistedChatOutput = streamingHandlers.hasPersistedChatSegments()
 
-      this.posthogService.captureAiSpan({
-        ...context.traceIdentity,
-        traceId: context.traceContext.traceId,
-        sessionId: context.traceContext.sessionId,
-        spanId: mainLoopSpanId,
-        parentId: context.traceContext.activeParentSpanId,
-        spanName: 'main-agent',
-        status: 'completed',
-        output: {
-          iterations: runResult.steps.length,
-          toolResults: toolResults.length,
-          isTerminal: hasTextOutput || hasPersistedChatOutput,
-        },
-        properties: loopSpanProperties,
-      })
-
       return {
         messages: runResult.messages,
         iterations: runResult.steps.length,
@@ -331,19 +256,6 @@ export class LLM {
     } catch (error) {
       streamingHandlers.finalize()
 
-      const cancelled = abortSignal?.aborted || isAbortError(error)
-      this.posthogService.captureAiSpan({
-        ...context.traceIdentity,
-        traceId: context.traceContext.traceId,
-        sessionId: context.traceContext.sessionId,
-        spanId: mainLoopSpanId,
-        parentId: context.traceContext.activeParentSpanId,
-        spanName: 'main-agent',
-        status: cancelled ? 'cancelled' : 'failed',
-        isError: !cancelled,
-        error: error instanceof Error ? error.message : String(error),
-        properties: loopSpanProperties,
-      })
       throw error
     }
   }
@@ -378,19 +290,9 @@ export class LLM {
     const compiledSystemPrompt = this.compilePrompt(systemPrompt)
 
     const rawModel = this.provider.createModel(this.modelName)
-    let model = rawModel
-
-    if (context) {
-      const generationSpanId = createSpanId()
-      const traceContext = withToolCallTraceContext(context.traceContext, toolCallId)
-      model = this.wrapModelWithTrace(rawModel, context, traceContext, {
-        function_id: 'structured-complete',
-        agent_source: context.agent.source,
-        subagent_id: traceContext.subagentId,
-        tool_call_id: traceContext.toolCallId,
-        $ai_span_id: generationSpanId,
-      })
-    }
+    void context
+    void toolCallId
+    const model = rawModel
 
     // Create structured response tool
     const structuredResponseTool = {
@@ -420,44 +322,6 @@ export class LLM {
     return parsed
   }
 
-  private wrapModelWithTrace<TModel>(
-    model: TModel,
-    context: Pick<ToolContext, 'traceIdentity'>,
-    traceContext: TraceContext,
-    properties: Record<string, unknown>
-  ): TModel {
-    return this.posthogService.wrapModelWithTracing(model, {
-      ...context.traceIdentity,
-      traceId: traceContext.traceId,
-      sessionId: traceContext.sessionId,
-      parentId: traceContext.activeParentSpanId,
-      properties,
-    })
-  }
-
-  private captureSubagentSpan(
-    context: ToolContext,
-    traceContext: TraceContext,
-    spanId: string,
-    agentType: string,
-    payload: SubagentSpanPayload
-  ): void {
-    this.posthogService.captureAiSpan({
-      ...context.traceIdentity,
-      traceId: traceContext.traceId,
-      sessionId: traceContext.sessionId,
-      spanId,
-      parentId: traceContext.activeParentSpanId,
-      spanName: `subagent-${agentType}`,
-      status: payload.status,
-      input: payload.input,
-      output: payload.output,
-      isError: payload.isError,
-      error: payload.error,
-      properties: payload.properties,
-    })
-  }
-
   /**
    * Compile a prompt parameter into a string.
    */
@@ -485,12 +349,8 @@ export class LLM {
       },
       {
         createModel: (modelId) => this.provider.createModel(modelId),
-        wrapModelWithTrace: (model, context, traceContext, properties) =>
-          this.wrapModelWithTrace(model, context, traceContext, properties),
         toSystemMessages: (systemPrompts) => this.toSystemMessages(systemPrompts),
         formatMessages: (msgs) => this.provider.formatMessages(msgs),
-        captureSubagentSpan: (context, traceContext, spanId, agentType, payload) =>
-          this.captureSubagentSpan(context, traceContext, spanId, agentType, payload),
         applyRuntimeProviderOptions: (baseOptions, context, modelId, agentType) =>
           applyRuntimeProviderOptions({
             providerName: this.provider.name,

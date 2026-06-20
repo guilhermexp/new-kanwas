@@ -3,7 +3,6 @@ import type { Context } from '#agent/types'
 import { DEFAULT_AGENT_MODE } from '#agent/modes'
 import User from '#models/user'
 import Workspace from '#models/workspace'
-import PostHogService from '#services/posthog_service'
 import { SandboxRegistry } from '#services/sandbox_registry'
 
 type ContextOverrides = Partial<
@@ -37,10 +36,7 @@ export interface PrepareBackgroundAgentExecutionOptions {
 
 @inject()
 export default class BackgroundAgentExecutionService {
-  constructor(
-    private sandboxRegistry: SandboxRegistry,
-    private posthogService: PostHogService
-  ) {}
+  constructor(private sandboxRegistry: SandboxRegistry) {}
 
   async prepareExecution(options: PrepareBackgroundAgentExecutionOptions): Promise<PreparedBackgroundAgentExecution> {
     const accessToken = await User.accessTokens.create(options.user, [`workspace:${options.workspace.id}:sandbox`], {
@@ -48,14 +44,6 @@ export default class BackgroundAgentExecutionService {
     })
     const authToken = accessToken.value!.release()
     const authTokenId = accessToken.identifier
-
-    this.posthogService.identifyUser({
-      id: options.user.id,
-      email: options.user.email,
-      name: options.user.name,
-      createdAt: options.user.createdAt,
-      updatedAt: options.user.updatedAt,
-    })
 
     return {
       context: {

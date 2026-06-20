@@ -47,7 +47,6 @@ function createExecContext(state: State, toolCallId: string) {
       flow: {},
       workspaceDocumentService: {},
       webSearchService: {},
-      posthogService: {},
       traceContext: { traceId: 'trace-id', sessionId: 'session-id', activeParentSpanId: 'span-id' },
       traceIdentity: {
         distinctId: 'user-id',

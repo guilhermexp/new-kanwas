@@ -43,11 +43,6 @@ test.group('CanvasAgent execute cancellation timing', () => {
       sandboxRegistry: {
         createInvocationSandbox,
       } as any,
-      posthogService: {
-        captureAiTrace: () => undefined,
-        captureAiSpan: () => undefined,
-        wrapModelWithTracing: (model: unknown) => model,
-      } as any,
     })
 
     agent.getState().abort('cancel-before-execute')

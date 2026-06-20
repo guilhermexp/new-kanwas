@@ -11,7 +11,7 @@ import {
   isAbortError,
   type TraceContext,
   type TraceIdentity,
-} from './tracing/posthog.js'
+} from './tracing/trace_context.js'
 import {
   createOnboardingFlowDefinition,
   createProductAgentFlowDefinition,
@@ -20,7 +20,6 @@ import {
   type ResolvedProductAgentFlow,
 } from './flow.js'
 import type { ProviderConfig } from './providers/types.js'
-import { captureSandboxCostSpan, finishExecutionTrace } from './execution_trace.js'
 import { buildContextSection, buildWorkingContextCanvasPath } from './execution_context.js'
 import { buildUserMessageContent, refreshPersistedAttachmentUrls } from './user_message_content.js'
 import { promptManager } from './prompt_manager.js'
@@ -28,7 +27,6 @@ import { buildMessagesHash } from './messages_hash.js'
 import { normalizeAgentMode } from './modes.js'
 import SkillService from '#services/skill_service'
 import UserConfigService from '#services/user_config_service'
-import type PostHogService from '#services/posthog_service'
 import { type ExecutionEngine, DEFAULT_EXECUTION_ENGINE } from 'shared/execution-config'
 import { CodexEngine } from './bridge/codex_engine.js'
 import { ClaudeSDKEngine } from './bridge/claude_sdk_engine.js'
@@ -53,7 +51,6 @@ export class CanvasAgent {
   private workspaceDocumentService: AgentConfig['workspaceDocumentService']
   private webSearchService: AgentConfig['webSearchService']
   private sandboxRegistry: AgentConfig['sandboxRegistry']
-  private posthogService: PostHogService
   private sandboxManager: SandboxManager
   private codexEngine: CodexEngine | null = null
   private claudeSDKEngine: ClaudeSDKEngine | null = null
@@ -65,12 +62,11 @@ export class CanvasAgent {
     this.state = new State(this.eventStream)
     this.provider = config.provider
     this.executionEngine = config.executionEngine ?? DEFAULT_EXECUTION_ENGINE
-    this.llm = new LLM({ provider: config.provider, model: config.model, posthogService: config.posthogService })
+    this.llm = new LLM({ provider: config.provider, model: config.model })
     this.state.setProvider(config.provider.name)
     this.workspaceDocumentService = config.workspaceDocumentService
     this.webSearchService = config.webSearchService
     this.sandboxRegistry = config.sandboxRegistry
-    this.posthogService = config.posthogService
     // SandboxManager will be set in execute() from invocation registry
     this.sandboxManager = null as unknown as SandboxManager
   }
@@ -80,7 +76,7 @@ export class CanvasAgent {
    */
   overrideProvider(provider: ProviderConfig) {
     this.provider = provider
-    this.llm = new LLM({ provider, model: provider.modelTiers.big, posthogService: this.posthogService })
+    this.llm = new LLM({ provider, model: provider.modelTiers.big })
     this.state.setProvider(provider.name)
   }
 
@@ -215,16 +211,12 @@ export class CanvasAgent {
     const traceContext = createRootTraceContext(context.invocationId, context.aiSessionId)
     const replayTraceProperties = this.consumeReplayTraceProperties()
 
-    const traceInput = [{ role: 'user', content: userMessage }]
-
-    let traceStatus: 'completed' | 'failed' | 'cancelled' = 'completed'
     let traceError: string | undefined
     let traceOutput: unknown
 
     const cancelReason = 'User interrupted execution'
 
     const markCancelled = () => {
-      traceStatus = 'cancelled'
       this.state.failActiveToolItems('Execution stopped by user')
       this.state.addTimelineItem(
         {
@@ -383,13 +375,11 @@ export class CanvasAgent {
         return result
       } catch (error) {
         if (this.state.isAborted || isAbortError(error)) {
-          traceStatus = 'cancelled'
           traceOutput = {
             status: 'cancelled',
             reason: cancelReason,
           }
         } else {
-          traceStatus = 'failed'
           traceError = error instanceof Error ? error.message : 'Unknown error'
           traceOutput = {
             status: 'error',
@@ -403,7 +393,6 @@ export class CanvasAgent {
       // Handle abort gracefully - this is an intentional user interruption
       // Check both the abort signal state AND error name since SDK may wrap the AbortError
       if (this.state.isAborted || isAbortError(error)) {
-        traceStatus = 'cancelled'
         traceOutput = traceOutput || {
           status: 'cancelled',
           reason: cancelReason,
@@ -425,7 +414,6 @@ export class CanvasAgent {
         return null
       }
 
-      traceStatus = 'failed'
       traceError = error instanceof Error ? error.message : 'Unknown error occurred'
       traceOutput = traceOutput || {
         status: 'error',
@@ -448,26 +436,6 @@ export class CanvasAgent {
       )
       throw error
     } finally {
-      await captureSandboxCostSpan({
-        sandboxManager: this.sandboxManager,
-        posthogService: this.posthogService,
-        traceIdentity,
-        traceContext,
-      })
-      finishExecutionTrace({
-        posthogService: this.posthogService,
-        traceIdentity,
-        traceContext,
-        traceStatus,
-        traceError,
-        traceInput,
-        traceOutput,
-        traceProperties: {
-          ...replayTraceProperties,
-          invocation_source: context.invocationSource ?? undefined,
-        },
-      })
-
       // Clean up LLM resources (e.g., Composio sessions)
       await this.llm.closeSession()
 
@@ -567,7 +535,6 @@ export class CanvasAgent {
       eventStream: this.eventStream,
       workspaceDocumentService: this.workspaceDocumentService,
       webSearchService: this.webSearchService,
-      posthogService: this.posthogService,
       sandboxManager: this.sandboxManager,
       agent: { source: 'main' },
       flow,
@@ -584,7 +551,6 @@ export class CanvasAgent {
     const messages = this.state.getMessages()
 
     // Call LLM with tools
-    // LLM-level tracing is handled by invocation-scoped PostHog model wrapping
     const result: NativeGenerateResult = await this.llm.generateWithTools({
       messages,
       systemPrompts: flow.main.systemPrompts,
@@ -638,7 +604,6 @@ export class CanvasAgent {
       eventStream: this.eventStream,
       workspaceDocumentService: this.workspaceDocumentService,
       webSearchService: this.webSearchService,
-      posthogService: this.posthogService,
       sandboxManager: this.sandboxManager,
       agent: { source: 'main' },
       flow,

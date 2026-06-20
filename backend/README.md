@@ -45,9 +45,11 @@ node ace test
 ### Agent execution engines
 
 The agent loop runs on one of three engines, selected with `EXECUTION_ENGINE`
-(`vercel-ai` default, `claude-sdk`, `codex`). The `claude-sdk` and `codex`
-engines authenticate with the **local CLI subscription** (Claude Code / Codex)
-and therefore require the backend to run **on the host**, not in Docker:
+(`vercel-ai` default, `claude-sdk`, `codex`). The CLI engines authenticate with
+subscriptions rather than API keys: `claude-sdk` uses the local Claude Code
+login, while `codex` uses the per-user OpenAI device OAuth connection from the
+app. Both require `SANDBOX_PROVIDER=host` so the CLI can run against a real host
+workspace:
 
 ```bash
 cd backend && pnpm dev   # Postgres/Redis/yjs can stay in Docker

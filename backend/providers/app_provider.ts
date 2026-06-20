@@ -5,7 +5,6 @@ import { CanvasAgent } from '#agent/index'
 import { ContextualLoggerContract } from '#contracts/contextual_logger'
 import { ContextualLogger } from '#services/contextual_logger'
 import { SandboxRegistry } from '#services/sandbox_registry'
-import PostHogService from '#services/posthog_service'
 import { createProviderFromConfig } from '#agent/providers/index'
 import type { ProviderConfig } from '#agent/providers/index'
 import { ANTHROPIC_DEFAULT_MODEL_TIERS, ANTHROPIC_DEFAULT_SUBAGENT_MODEL_TIERS } from 'shared/llm-config'
@@ -40,8 +39,6 @@ export default class AppProvider {
    * Register bindings to the container
    */
   register() {
-    this.app.container.singleton(PostHogService, () => new PostHogService())
-
     // Register ContextualLoggerContract with fallback for non-HTTP contexts.
     // For HTTP requests, container_bindings_middleware provides a request-scoped binding
     // that overrides this. For background tasks/events, this fallback is used.
@@ -69,7 +66,6 @@ export default class AppProvider {
       const workspaceDocumentService = await resolver.make(WorkspaceDocumentService)
       const webSearchService = WebSearchService.create()
       const sandboxRegistry = await resolver.make(SandboxRegistry)
-      const posthogService = await resolver.make(PostHogService)
       const logger = await resolver.make(ContextualLoggerContract)
 
       // Request-scoped defaults are resolved after reading user/admin config from DB.
@@ -92,7 +88,6 @@ export default class AppProvider {
         workspaceDocumentService,
         webSearchService,
         sandboxRegistry,
-        posthogService,
       })
     })
   }
@@ -115,8 +110,5 @@ export default class AppProvider {
   /**
    * Preparing to shutdown the app
    */
-  async shutdown() {
-    const posthogService = await this.app.container.make(PostHogService)
-    await posthogService.shutdown()
-  }
+  async shutdown() {}
 }

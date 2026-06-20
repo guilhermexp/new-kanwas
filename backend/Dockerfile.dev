@@ -7,8 +7,9 @@ RUN apt-get update && apt-get install -y git openssh-client && rm -rf /var/lib/a
 
 # CLI execution engines. codex ships its Linux binary via npm; the claude CLI is
 # bundled with @anthropic-ai/claude-agent-sdk (installed per-platform by pnpm),
-# so only codex needs a global install here. Auth is provided at runtime by
-# mounting the host's ~/.codex and ~/.claude logins (see docker-compose.yml).
+# so only codex needs a global install here. Runtime auth is configured in
+# docker-compose.yml: Claude mounts ~/.claude, while Codex uses Kanwas per-user
+# OpenAI device OAuth persisted under /root/.kanwas/codex-home.
 RUN npm install -g @openai/codex@0.134.0
 
 WORKDIR /app

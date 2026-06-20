@@ -174,8 +174,9 @@ Kanwas treats the agent as an eventful runtime, not a single API call.
 The reasoning loop is driven by a pluggable execution engine selected with
 `EXECUTION_ENGINE`: `vercel-ai` (in-process, API-key auth — the default),
 `claude-sdk` (Claude Code subscription), or `codex` (Codex/ChatGPT
-subscription). The CLI engines run the agent against a developer's local CLI
-login and require the backend to run on the host. See
+subscription). The CLI engines require `SANDBOX_PROVIDER=host`; Claude Code uses
+the local CLI login, while Codex uses a per-user OpenAI device OAuth connection
+created from the app and stored under that user's isolated `CODEX_HOME`. See
 [EXECUTION_ENGINES.md](./EXECUTION_ENGINES.md) for setup, auth, and gotchas.
 
 ---

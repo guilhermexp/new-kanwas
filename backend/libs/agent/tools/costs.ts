@@ -1,6 +1,3 @@
-import { createSpanId, withToolCallTraceContext } from '../tracing/posthog.js'
-import type { ToolContext } from './context.js'
-
 /**
  * Cost information for external API calls
  */
@@ -13,7 +10,7 @@ export interface ToolCostInfo {
 
 /**
  * Per-request costs for Parallel.ai API calls
- * Used for PostHog AI span cost tracking
+ * Used for internal cost metadata.
  *
  * Pricing (as of Dec 2024):
  * - Search: $5.00 per 1,000 requests = $0.005/request
@@ -46,36 +43,12 @@ export const E2B_PRICING = {
 }
 
 export function emitToolCostSpan(params: {
-  context: ToolContext
+  context: unknown
   toolName: string
   toolCallId?: string
   costUsd: number
   costSource: string
   properties?: Record<string, unknown>
 }): void {
-  const { context } = params
-  const traceIdentity = context.traceIdentity
-  const traceContext = withToolCallTraceContext(context.traceContext, params.toolCallId)
-
-  context.posthogService.captureAiSpan({
-    ...traceIdentity,
-    traceId: traceContext.traceId,
-    sessionId: traceContext.sessionId,
-    spanId: createSpanId(),
-    parentId: traceContext.activeParentSpanId,
-    spanName: `${params.toolName}-cost`,
-    status: 'completed',
-    output: {
-      costUsd: params.costUsd,
-      costSource: params.costSource,
-    },
-    properties: {
-      tool_name: params.toolName,
-      tool_call_id: traceContext.toolCallId,
-      subagent_id: traceContext.subagentId,
-      cost_usd: params.costUsd,
-      cost_source: params.costSource,
-      ...params.properties,
-    },
-  })
+  void params
 }

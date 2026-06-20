@@ -38,7 +38,6 @@ test.group('tool loop runner', (group) => {
           stopWhen: [],
           context: {
             abortSignal: undefined,
-            posthogService: {},
             traceIdentity: {},
             traceContext: {},
           } as any,
@@ -76,7 +75,6 @@ test.group('tool loop runner', (group) => {
       stopWhen: [],
       context: {
         abortSignal: undefined,
-        posthogService: {},
         traceIdentity: {},
         traceContext: {},
       } as any,

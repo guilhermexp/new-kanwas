@@ -14,6 +14,9 @@
       service for every action.
 - [x] 1.5 Update/extend `backend/tests/unit/services/codex_oauth_service.spec.ts`
       to cover per-user isolation, cross-user poll rejection, expiry, and atomic write.
+- [x] 1.6 Align the device-code flow with Pi semantics where applicable: handle
+      `slow_down`, persist token expiry/account id, refresh expired credentials,
+      and serialize per-user auth writes.
 
 ## 2. Backend — agent runtime per-user CODEX_HOME
 
@@ -34,6 +37,7 @@
 - [x] 3.2 Memoise the refresh callback with `useCallback` so the poll `useEffect`
       is not torn down on parent re-renders.
 - [x] 3.3 Add `noopener,noreferrer` to the "reopen verification page" link.
+- [x] 3.4 Let backend `slow_down` responses update the frontend polling interval.
 
 ## 4. Verification
 
@@ -47,3 +51,11 @@
 - [ ] 4.5 Real validation: open the Agent engine settings in the browser,
       connect Codex as one user, confirm a second user sees `connected: false`.
       (Deferred to the orchestrator — requires a running stack + two user sessions.)
+
+## 5. App auth — real multi-user validation support
+
+- [x] 5.1 Gate `/auth/default` behind explicit `DEFAULT_USER_LOGIN_ENABLED=true`.
+- [x] 5.2 Keep frontend default-user auto-login/logout fallback opt-in via
+      `VITE_DEFAULT_AUTH_ENABLED=true`, paired with the backend flag.
+- [x] 5.3 Preserve explicit `Authorization` headers in development so one
+      session's bearer token is not overwritten by the default-user fallback.
